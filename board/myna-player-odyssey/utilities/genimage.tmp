@@ -30,6 +30,11 @@ image MynaPlayer.img {
 		partition-type = 0x83
 		image = "rootfs.ext4"
 	}
+
+	partition Rauc {
+		partition-type = 0x83
+		image = "rauc.ext4"
+	}
 }
 
 image bundle-MynaPlayer-${GENIMAGE_DATE}.${GENIMAGE_BUILD_ID}.raucb {
