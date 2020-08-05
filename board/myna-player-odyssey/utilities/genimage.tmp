@@ -1,0 +1,53 @@
+image MynaPlayer.img {
+	name = "MynaPlayer-${GENIMAGE_DATE}"
+	hdimage {
+		gpt = "true"
+	}
+
+	partition state {
+		offset = 0x14400
+		size = 0x30000
+		image = "/dev/null"
+		in-partition-table = "no"
+	}
+
+	partition barebox-environment {
+		size = 64K
+		image = "/dev/null"
+	}
+
+	partition ssbl {
+		partition-type = 0x83
+		image = "barebox.bin"
+	}
+
+	partition PrimaryRootfs {
+		partition-type = 0x83
+		image = "rootfs.ext4"
+	}
+
+	partition SecondaryRootfs {
+		partition-type = 0x83
+		image = "rootfs.ext4"
+	}
+}
+
+image bundle-MynaPlayer-${GENIMAGE_DATE}.${GENIMAGE_BUILD_ID}.raucb {
+	name = "bundle-MynaPlayer-${GENIMAGE_DATE}"
+	rauc {
+		files = {
+			"rootfs.tar.xz"
+		}
+		key = "${GENIMAGE_PRIVATE_KEY}"
+		cert = "${GENIMAGE_PUBLIC_KEY}"
+		extraargs = "--keyring ${GENIMAGE_CERTIFICATE_AUTHORITY}"
+		manifest = 
+			"[update]
+			compatible=LuminaSensum MynaPlayer
+			version=${GENIMAGE_DATE}
+			build=${GENIMAGE_BUILD_ID}
+			description=RAUC bundle for LuminaSensum MynaPlayer version ${GENIMAGE_DATE}, built by ${GENIMAGE_USER}@${GENIMAGE_HOST}.
+			[image.rootfs]
+			filename=rootfs.tar.xz"
+	}
+}

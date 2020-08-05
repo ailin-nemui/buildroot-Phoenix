@@ -1,0 +1,41 @@
+diff --git a/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi b/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi
+index 2f75b631feac..afeb85ac66ca 100644
+--- a/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi
++++ b/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi
+@@ -120,8 +120,7 @@
+ 
+ 	ethernet0_rgmii_pins_a: rgmii-0 {
+ 		pins1 {
+-			pinmux = <STM32_PINMUX('G', 5, AF11)>, /* ETH_RGMII_CLK125 */
+-				 <STM32_PINMUX('G', 4, AF11)>, /* ETH_RGMII_GTX_CLK */
++			pinmux = <STM32_PINMUX('G', 4, AF11)>, /* ETH_RGMII_GTX_CLK */
+ 				 <STM32_PINMUX('G', 13, AF11)>, /* ETH_RGMII_TXD0 */
+ 				 <STM32_PINMUX('G', 14, AF11)>, /* ETH_RGMII_TXD1 */
+ 				 <STM32_PINMUX('C', 2, AF11)>, /* ETH_RGMII_TXD2 */
+diff --git a/arch/arm/boot/dts/stm32mp157c-odyssey.dts b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+index f2ac92f1ad10..ac9fa784419d 100644
+--- a/arch/arm/boot/dts/stm32mp157c-odyssey.dts
++++ b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+@@ -30,6 +30,22 @@
+ 	phy-mode = "rgmii-id";
+ 	max-speed = <1000>;
+ 	phy-handle = <&phy0>;
++	assigned-clocks = <&rcc ETHCK_K>, <&rcc PLL4_P>;
++	assigned-clock-parents = <&rcc PLL4_P>;
++	assigned-clock-rates = <125000000>;
++	st,eth-clk-sel;
++	clock-names = "stmmaceth",
++	    "mac-clk-tx",
++	    "mac-clk-rx",
++	    "eth-ck",
++	    "syscfg-clk",
++	    "ethstp";
++	clocks = <&rcc ETHMAC>,
++	    <&rcc ETHTX>,
++	    <&rcc ETHRX>,
++	    <&rcc ETHCK_K>,
++	    <&rcc SYSCFG>,
++	    <&rcc ETHSTP>;
+ 
+ 	mdio0 {
+ 		#address-cells = <1>;

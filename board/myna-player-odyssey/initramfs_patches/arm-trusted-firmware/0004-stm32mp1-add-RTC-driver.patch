@@ -1,0 +1,736 @@
+From 50302f6ebc885c3788794587203a6a6012d48d04 Mon Sep 17 00:00:00 2001
+From: Yann Gautier <yann.gautier@st.com>
+Date: Mon, 13 May 2019 18:37:00 +0200
+Subject: [PATCH 4/7] stm32mp1: add RTC driver
+
+This driver is responsible to manage STM32MP1 Real Time Clock IP.
+
+Change-Id: I8bb84cf2a2786be718944d69153f676d57bfbc37
+Signed-off-by: Yann Gautier <yann.gautier@st.com>
+Signed-off-by: Nicolas Le Bayon <nicolas.le.bayon@st.com>
+---
+ drivers/st/clk/stm32mp1_clk.c              |  37 ++
+ drivers/st/rtc/stm32_rtc.c                 | 488 +++++++++++++++++++++
+ include/drivers/st/stm32_rtc.h             |  78 ++++
+ include/drivers/st/stm32mp1_clk.h          |   2 +
+ plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk |   1 +
+ plat/st/stm32mp1/sp_min/sp_min_setup.c     |  34 +-
+ 6 files changed, 632 insertions(+), 8 deletions(-)
+ create mode 100644 drivers/st/rtc/stm32_rtc.c
+ create mode 100644 include/drivers/st/stm32_rtc.h
+
+diff --git a/drivers/st/clk/stm32mp1_clk.c b/drivers/st/clk/stm32mp1_clk.c
+index 0cc87cc71..994614f03 100644
+--- a/drivers/st/clk/stm32mp1_clk.c
++++ b/drivers/st/clk/stm32mp1_clk.c
+@@ -1572,6 +1572,43 @@ void stm32mp1_stgen_increment(unsigned long long offset_in_ms)
+ 	mmio_setbits_32(stgen + CNTCR_OFF, CNTCR_EN);
+ }
+ 
++/*******************************************************************************
++ * This function determines the number of needed RTC calendar read operations
++ * to get consistent values (1 or 2 depending on clock frequencies).
++ * If APB1 frequency is lower than 7 times the RTC one, the software has to
++ * read the calendar time and date registers twice.
++ * Returns true if read twice is needed, false else.
++ ******************************************************************************/
++bool stm32mp1_rtc_get_read_twice(void)
++{
++	unsigned long apb1_freq;
++	uint32_t rtc_freq;
++	uint32_t apb1_div;
++	uintptr_t rcc_base = stm32mp_rcc_base();
++
++	switch ((mmio_read_32(rcc_base + RCC_BDCR) &
++		 RCC_BDCR_RTCSRC_MASK) >> RCC_BDCR_RTCSRC_SHIFT) {
++	case 1:
++		rtc_freq = stm32mp_clk_get_rate(CK_LSE);
++		break;
++	case 2:
++		rtc_freq = stm32mp_clk_get_rate(CK_LSI);
++		break;
++	case 3:
++		rtc_freq = stm32mp_clk_get_rate(CK_HSE);
++		rtc_freq /= (mmio_read_32(rcc_base + RCC_RTCDIVR) &
++			     RCC_DIVR_DIV_MASK) + 1U;
++		break;
++	default:
++		panic();
++	}
++
++	apb1_div = mmio_read_32(rcc_base + RCC_APB1DIVR) & RCC_APBXDIV_MASK;
++	apb1_freq = stm32mp_clk_get_rate(CK_MCU) >> apb1_div;
++
++	return apb1_freq < (rtc_freq * 7U);
++}
++
+ static void stm32mp1_pkcs_config(uint32_t pkcs)
+ {
+ 	uintptr_t address = stm32mp_rcc_base() + ((pkcs >> 4) & 0xFFFU);
+diff --git a/drivers/st/rtc/stm32_rtc.c b/drivers/st/rtc/stm32_rtc.c
+new file mode 100644
+index 000000000..eaa6f7508
+--- /dev/null
++++ b/drivers/st/rtc/stm32_rtc.c
+@@ -0,0 +1,488 @@
++/*
++ * Copyright (c) 2018-2019, STMicroelectronics - All Rights Reserved
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++
++#include <platform_def.h>
++
++#include <arch_helpers.h>
++#include <common/debug.h>
++#include <drivers/st/stm32_rtc.h>
++#include <drivers/st/stm32mp_clkfunc.h>
++#include <lib/mmio.h>
++#include <lib/spinlock.h>
++
++#define RTC_COMPAT		"st,stm32mp1-rtc"
++
++#define RTC_TR_SU_MASK		GENMASK(3, 0)
++#define RTC_TR_ST_MASK		GENMASK(6, 4)
++#define RTC_TR_ST_SHIFT		4
++#define RTC_TR_MNU_MASK		GENMASK(11, 8)
++#define RTC_TR_MNU_SHIFT	8
++#define RTC_TR_MNT_MASK		GENMASK(14, 12)
++#define RTC_TR_MNT_SHIFT	12
++#define RTC_TR_HU_MASK		GENMASK(19, 16)
++#define RTC_TR_HU_SHIFT		16
++#define RTC_TR_HT_MASK		GENMASK(21, 20)
++#define RTC_TR_HT_SHIFT		20
++#define RTC_TR_PM		BIT(22)
++
++#define RTC_DR_DU_MASK		GENMASK(3, 0)
++#define RTC_DR_DT_MASK		GENMASK(5, 4)
++#define RTC_DR_DT_SHIFT		4
++#define RTC_DR_MU_MASK		GENMASK(11, 8)
++#define RTC_DR_MU_SHIFT		8
++#define RTC_DR_MT		BIT(12)
++#define RTC_DR_MT_SHIFT		12
++#define RTC_DR_WDU_MASK		GENMASK(15, 13)
++#define RTC_DR_WDU_SHIFT	13
++#define RTC_DR_YU_MASK		GENMASK(19, 16)
++#define RTC_DR_YU_SHIFT		16
++#define RTC_DR_YT_MASK		GENMASK(23, 20)
++#define RTC_DR_YT_SHIFT		20
++
++#define RTC_SSR_SS_MASK		GENMASK(15, 0)
++
++#define RTC_ICSR_ALRAWF		BIT(0)
++#define RTC_ICSR_RSF		BIT(5)
++
++#define RTC_PRER_PREDIV_S_MASK	GENMASK(14, 0)
++
++#define RTC_CR_BYPSHAD		BIT(5)
++#define RTC_CR_BYPSHAD_SHIFT	5
++#define RTC_CR_ALRAE		BIT(8)
++#define RTC_CR_ALRAIE		BIT(12)
++#define RTC_CR_TAMPTS		BIT(25)
++
++#define RTC_SMCR_TS_DPROT	BIT(3)
++
++#define RTC_TSDR_DU_MASK	GENMASK(3, 0)
++#define RTC_TSDR_DU_SHIFT	0
++#define RTC_TSDR_DT_MASK	GENMASK(5, 4)
++#define RTC_TSDR_DT_SHIFT	4
++#define RTC_TSDR_MU_MASK	GENMASK(11, 8)
++#define RTC_TSDR_MU_SHIFT	8
++
++#define RTC_ALRMAR_DU_SHIFT	24
++
++#define RTC_SR_TSF		BIT(3)
++#define RTC_SR_TSOVF		BIT(4)
++
++#define RTC_SCR_CTSF		BIT(3)
++#define RTC_SCR_CTSOVF		BIT(4)
++
++#define RTC_WPR_KEY1		0xCA
++#define RTC_WPR_KEY2		0x53
++#define RTC_WPR_KEY_LOCK	0xFF
++
++static struct dt_node_info rtc_dev;
++
++static struct spinlock lock;
++
++void stm32_rtc_regs_lock(void)
++{
++	if (stm32mp_lock_available()) {
++		spin_lock(&lock);
++	}
++}
++
++void stm32_rtc_regs_unlock(void)
++{
++	if (stm32mp_lock_available()) {
++		spin_unlock(&lock);
++	}
++}
++
++static void stm32_rtc_write_unprotect(void)
++{
++	mmio_write_32(rtc_dev.base + RTC_WPR, RTC_WPR_KEY1);
++	mmio_write_32(rtc_dev.base + RTC_WPR, RTC_WPR_KEY2);
++}
++
++static void stm32_rtc_write_protect(void)
++{
++	mmio_write_32(rtc_dev.base + RTC_WPR, RTC_WPR_KEY_LOCK);
++}
++
++/*******************************************************************************
++ * This function gets the BYPSHAD bit value of the RTC_CR register.
++ * It will determine if we need to reset RTC_ISCR.RSF after each RTC calendar
++ * read, and also wait for RTC_ISCR.RSF=1 before next read.
++ * Returns true or false depending on the bit value.
++ ******************************************************************************/
++static bool stm32_rtc_get_bypshad(void)
++{
++	return ((mmio_read_32(rtc_dev.base + RTC_CR) & RTC_CR_BYPSHAD) >>
++		RTC_CR_BYPSHAD_SHIFT) != 0U;
++}
++
++/*******************************************************************************
++ * This function reads the RTC calendar register values.
++ * If shadow registers are not bypassed, then a reset/poll is done.
++ ******************************************************************************/
++static void stm32_rtc_read_calendar(struct stm32_rtc_calendar *calendar)
++{
++	bool bypshad = stm32_rtc_get_bypshad();
++
++	if (!bypshad) {
++		mmio_clrbits_32((uint32_t)(rtc_dev.base + RTC_ICSR),
++				RTC_ICSR_RSF);
++		while ((mmio_read_32(rtc_dev.base + RTC_ICSR) & RTC_ICSR_RSF) !=
++		       RTC_ICSR_RSF) {
++			;
++		}
++	}
++
++	calendar->ssr = mmio_read_32(rtc_dev.base + RTC_SSR);
++	calendar->tr = mmio_read_32(rtc_dev.base + RTC_TR);
++	calendar->dr = mmio_read_32(rtc_dev.base + RTC_DR);
++}
++
++/*******************************************************************************
++ * This function fill the rtc_time structure based on rtc_calendar register.
++ ******************************************************************************/
++static void stm32_rtc_get_time(struct stm32_rtc_calendar *cal,
++			       struct stm32_rtc_time *tm)
++{
++	assert(cal != NULL);
++	assert(tm != NULL);
++
++	tm->hour = (((cal->tr & RTC_TR_HT_MASK) >> RTC_TR_HT_SHIFT) * 10U) +
++		((cal->tr & RTC_TR_HU_MASK) >> RTC_TR_HU_SHIFT);
++
++	if ((cal->tr & RTC_TR_PM) != 0U) {
++		tm->hour += 12U;
++	}
++
++	tm->min = (((cal->tr & RTC_TR_MNT_MASK) >> RTC_TR_MNT_SHIFT) * 10U) +
++		  ((cal->tr & RTC_TR_MNU_MASK) >> RTC_TR_MNU_SHIFT);
++	tm->sec = (((cal->tr & RTC_TR_ST_MASK) >> RTC_TR_ST_SHIFT) * 10U) +
++		  (cal->tr & RTC_TR_SU_MASK);
++}
++
++/*******************************************************************************
++ * This function fill the rtc_time structure with the given date register.
++ ******************************************************************************/
++static void stm32_rtc_get_date(struct stm32_rtc_calendar *cal,
++			       struct stm32_rtc_time *tm)
++{
++	assert(cal != NULL);
++	assert(tm != NULL);
++
++	tm->wday = (((cal->dr & RTC_DR_WDU_MASK) >> RTC_DR_WDU_SHIFT));
++
++	tm->day = (((cal->dr & RTC_DR_DT_MASK) >> RTC_DR_DT_SHIFT) * 10U) +
++		  (cal->dr & RTC_DR_DU_MASK);
++
++	tm->month = (((cal->dr & RTC_DR_MT) >> RTC_DR_MT_SHIFT) * 10U) +
++		    ((cal->dr & RTC_DR_MU_MASK) >> RTC_DR_MU_SHIFT);
++
++	tm->year = (((cal->dr & RTC_DR_YT_MASK) >> RTC_DR_YT_SHIFT) * 10U) +
++		   ((cal->dr & RTC_DR_YU_MASK) >> RTC_DR_YU_SHIFT) + 2000U;
++}
++
++/*******************************************************************************
++ * This function reads the RTC timestamp register values and update time
++ * structure with the corresponding value.
++ ******************************************************************************/
++static void stm32_rtc_read_timestamp(struct stm32_rtc_time *time)
++{
++	assert(time != NULL);
++
++	struct stm32_rtc_calendar cal_tamp;
++
++	cal_tamp.tr = mmio_read_32(rtc_dev.base + RTC_TSTR);
++	cal_tamp.dr = mmio_read_32(rtc_dev.base + RTC_TSDR);
++	stm32_rtc_get_time(&cal_tamp, time);
++	stm32_rtc_get_date(&cal_tamp, time);
++}
++
++/*******************************************************************************
++ * This function gets the RTC calendar register values.
++ * It takes into account the need of reading twice or not, depending on
++ * frequencies previously setted, and the bypass or not of the shadow
++ * registers. This service is exposed externally.
++ ******************************************************************************/
++void stm32_rtc_get_calendar(struct stm32_rtc_calendar *calendar)
++{
++	bool read_twice = stm32mp1_rtc_get_read_twice();
++
++	stm32_rtc_regs_lock();
++	stm32mp_clk_enable(rtc_dev.clock);
++
++	stm32_rtc_read_calendar(calendar);
++
++	if (read_twice) {
++		uint32_t tr_save = calendar->tr;
++
++		stm32_rtc_read_calendar(calendar);
++
++		if (calendar->tr != tr_save) {
++			stm32_rtc_read_calendar(calendar);
++		}
++	}
++
++	stm32mp_clk_disable(rtc_dev.clock);
++	stm32_rtc_regs_unlock();
++}
++
++/*******************************************************************************
++ * This function computes the second fraction in milliseconds.
++ * The returned value is a uint32_t between 0 and 1000.
++ ******************************************************************************/
++static uint32_t stm32_rtc_get_second_fraction(struct stm32_rtc_calendar *cal)
++{
++	uint32_t prediv_s = mmio_read_32(rtc_dev.base + RTC_PRER) &
++			    RTC_PRER_PREDIV_S_MASK;
++	uint32_t ss = cal->ssr & RTC_SSR_SS_MASK;
++
++	return ((prediv_s - ss) * 1000U) / (prediv_s + 1U);
++}
++
++/*******************************************************************************
++ * This function computes the fraction difference between two timestamps.
++ * Here again the returned value is in milliseconds.
++ ******************************************************************************/
++static unsigned long long stm32_rtc_diff_frac(struct stm32_rtc_calendar *cur,
++					      struct stm32_rtc_calendar *ref)
++{
++	unsigned long long val_r;
++	unsigned long long val_c;
++
++	val_r = stm32_rtc_get_second_fraction(ref);
++	val_c = stm32_rtc_get_second_fraction(cur);
++
++	if (val_c >= val_r) {
++		return val_c - val_r;
++	} else {
++		return 1000U - val_r + val_c;
++	}
++}
++
++/*******************************************************************************
++ * This function computes the time difference between two timestamps.
++ * It includes seconds, minutes and hours.
++ * Here again the returned value is in milliseconds.
++ ******************************************************************************/
++static unsigned long long stm32_rtc_diff_time(struct stm32_rtc_time *current,
++					      struct stm32_rtc_time *ref)
++{
++	signed long long diff_in_s;
++	signed long long curr_s;
++	signed long long ref_s;
++
++	curr_s = (signed long long)current->sec +
++		 (((signed long long)current->min +
++		  (((signed long long)current->hour * 60))) * 60);
++
++	ref_s = (signed long long)ref->sec +
++		(((signed long long)ref->min +
++		 (((signed long long)ref->hour * 60))) * 60);
++
++	diff_in_s = curr_s - ref_s;
++	if (diff_in_s < 0) {
++		diff_in_s += 24 * 60 * 60;
++	}
++
++	return (unsigned long long)diff_in_s * 1000U;
++}
++
++/*******************************************************************************
++ * This function determines if the year is leap or not.
++ * Returned value is true or false.
++ ******************************************************************************/
++static bool stm32_is_a_leap_year(uint32_t year)
++{
++	return ((year % 4U) == 0U) &&
++	       (((year % 100U) != 0U) || ((year % 400U) == 0U));
++}
++
++/*******************************************************************************
++ * This function computes the date difference between two timestamps.
++ * It includes days, months, years, with exceptions.
++ * Here again the returned value is in milliseconds.
++ ******************************************************************************/
++static unsigned long long stm32_rtc_diff_date(struct stm32_rtc_time *current,
++					      struct stm32_rtc_time *ref)
++{
++	uint32_t diff_in_days = 0;
++	uint32_t m;
++	static const uint8_t month_len[NB_MONTHS] = {
++		31, 28, 31, 30, 31, 30,
++		31, 31, 30, 31, 30, 31
++	};
++
++	/* Get the number of non-entire month days */
++	if (current->day >= ref->day) {
++		diff_in_days += current->day - ref->day;
++	} else {
++		diff_in_days += (uint32_t)month_len[ref->month - 1U] -
++				ref->day + current->day;
++	}
++
++	/* Get the number of entire months, and compute the related days */
++	if (current->month > (ref->month + 1U)) {
++		for (m = (ref->month + 1U); (m < current->month) &&
++		     (m < 12U); m++) {
++			diff_in_days += (uint32_t)month_len[m - 1U];
++		}
++	}
++
++	if (current->month < (ref->month - 1U)) {
++		for (m = 1U; (m < current->month) && (m < 12U); m++) {
++			diff_in_days += (uint32_t)month_len[m - 1U];
++		}
++
++		for (m = (ref->month + 1U); m < 12U; m++) {
++			diff_in_days += (uint32_t)month_len[m - 1U];
++		}
++	}
++
++	/* Get complete years */
++	if (current->year > (ref->year + 1U)) {
++		diff_in_days += (current->year - ref->year - 1U) * 365U;
++	}
++
++	/* Particular cases: leap years (one day more) */
++	if (diff_in_days > 0U) {
++		if (current->year == ref->year) {
++			if (stm32_is_a_leap_year(current->year)) {
++				if ((ref->month <= 2U) &&
++				    (current->month >= 3U) &&
++				    (current->day <= 28U)) {
++					diff_in_days++;
++				}
++			}
++		} else {
++			uint32_t y;
++
++			/* Ref year is leap */
++			if ((stm32_is_a_leap_year(ref->year)) &&
++			    (ref->month <= 2U) && (ref->day <= 28U)) {
++				diff_in_days++;
++			}
++
++			/* Current year is leap */
++			if ((stm32_is_a_leap_year(current->year)) &&
++			    (current->month >= 3U)) {
++				diff_in_days++;
++			}
++
++			/* Interleaved years are leap */
++			for (y = ref->year + 1U; y < current->year; y++) {
++				if (stm32_is_a_leap_year(y)) {
++					diff_in_days++;
++				}
++			}
++		}
++	}
++
++	return (24ULL * 60U * 60U * 1000U) * (unsigned long long)diff_in_days;
++}
++
++/*******************************************************************************
++ * This function computes the date difference between two rtc value.
++ * Here again the returned value is in milliseconds.
++ ******************************************************************************/
++unsigned long long stm32_rtc_diff_calendar(struct stm32_rtc_calendar *cur,
++					   struct stm32_rtc_calendar *ref)
++{
++	unsigned long long diff_in_ms = 0;
++	struct stm32_rtc_time curr_t;
++	struct stm32_rtc_time ref_t;
++
++	stm32mp_clk_enable(rtc_dev.clock);
++
++	stm32_rtc_get_date(cur, &curr_t);
++	stm32_rtc_get_date(ref, &ref_t);
++	stm32_rtc_get_time(cur, &curr_t);
++	stm32_rtc_get_time(ref, &ref_t);
++
++	diff_in_ms += stm32_rtc_diff_frac(cur, ref);
++	diff_in_ms += stm32_rtc_diff_time(&curr_t, &ref_t);
++	diff_in_ms += stm32_rtc_diff_date(&curr_t, &ref_t);
++
++	stm32mp_clk_disable(rtc_dev.clock);
++
++	return diff_in_ms;
++}
++
++/*******************************************************************************
++ * This function fill the RTC timestamp structure.
++ ******************************************************************************/
++void stm32_rtc_get_timestamp(struct stm32_rtc_time *tamp_ts)
++{
++	stm32_rtc_regs_lock();
++	stm32mp_clk_enable(rtc_dev.clock);
++
++	if ((mmio_read_32(rtc_dev.base + RTC_SR) & RTC_SR_TSF) != 0U) {
++		/* Print timestamp for tamper event */
++		stm32_rtc_read_timestamp(tamp_ts);
++		mmio_setbits_32(rtc_dev.base + RTC_SCR, RTC_SCR_CTSF);
++		if ((mmio_read_32(rtc_dev.base + RTC_SR) & RTC_SR_TSOVF) !=
++		    0U) {
++			/* Overflow detected */
++			mmio_setbits_32(rtc_dev.base + RTC_SCR, RTC_SCR_CTSOVF);
++		}
++	}
++
++	stm32mp_clk_disable(rtc_dev.clock);
++	stm32_rtc_regs_unlock();
++}
++
++/*******************************************************************************
++ * This function enable the timestamp bit for tamper and secure timestamp
++ * access.
++ ******************************************************************************/
++void stm32_rtc_set_tamper_timestamp(void)
++{
++	stm32_rtc_regs_lock();
++	stm32mp_clk_enable(rtc_dev.clock);
++
++	stm32_rtc_write_unprotect();
++
++	/* Enable tamper timestamper */
++	mmio_setbits_32(rtc_dev.base + RTC_CR, RTC_CR_TAMPTS);
++
++	/* Secure Timestamp bit */
++	mmio_clrbits_32(rtc_dev.base + RTC_SMCR, RTC_SMCR_TS_DPROT);
++
++	stm32_rtc_write_protect();
++
++	stm32mp_clk_disable(rtc_dev.clock);
++	stm32_rtc_regs_unlock();
++}
++
++/*******************************************************************************
++ * This function return state of tamper timestamp.
++ ******************************************************************************/
++bool stm32_rtc_is_timestamp_enable(void)
++{
++	bool ret;
++
++	stm32mp_clk_enable(rtc_dev.clock);
++
++	ret = (mmio_read_32(rtc_dev.base + RTC_CR) & RTC_CR_TAMPTS) != 0U;
++
++	stm32mp_clk_disable(rtc_dev.clock);
++
++	return ret;
++}
++
++/*******************************************************************************
++ * RTC initialisation function.
++ ******************************************************************************/
++int stm32_rtc_init(void)
++{
++	int node;
++
++	node = dt_get_node(&rtc_dev, -1, RTC_COMPAT);
++	if (node < 0) {
++		return node;
++	}
++
++	return 0;
++}
+diff --git a/include/drivers/st/stm32_rtc.h b/include/drivers/st/stm32_rtc.h
+new file mode 100644
+index 000000000..128dd2d14
+--- /dev/null
++++ b/include/drivers/st/stm32_rtc.h
+@@ -0,0 +1,78 @@
++/*
++ * Copyright (c) 2017-2019, STMicroelectronics - All Rights Reserved
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef STM32_RTC_H
++#define STM32_RTC_H
++
++#include <stdbool.h>
++
++#define RTC_TR		0x00U
++#define RTC_DR		0x04U
++#define RTC_SSR		0x08U
++#define RTC_ICSR	0x0CU
++#define RTC_PRER	0x10U
++#define RTC_WUTR	0x14U
++#define RTC_CR		0x18U
++#define RTC_SMCR	0x20U
++#define RTC_WPR		0x24U
++#define RTC_CALR	0x28U
++#define RTC_SHIFTR	0x2CU
++#define RTC_TSTR	0x30U
++#define RTC_TSDR	0x34U
++#define RTC_TSSSR	0x38U
++#define RTC_ALRMAR	0x40U
++#define RTC_ALRMASSR	0x44U
++#define RTC_ALRMBR	0x48U
++#define RTC_ALRMBSSR	0x4CU
++#define RTC_SR		0x50U
++#define RTC_SCR		0x5CU
++#define RTC_OR		0x60U
++
++struct stm32_rtc_calendar {
++	uint32_t ssr;
++	uint32_t tr;
++	uint32_t dr;
++};
++
++enum months {
++	JANUARY = 1,
++	FEBRUARY,
++	MARCH,
++	APRIL,
++	MAY,
++	JUNE,
++	JULY,
++	AUGUST,
++	SEPTEMBER,
++	OCTOBER,
++	NOVEMBER,
++	DECEMBER,
++	NB_MONTHS = 12
++};
++
++struct stm32_rtc_time {
++	uint32_t hour;
++	uint32_t min;
++	uint32_t sec;
++	uint32_t wday;
++	uint32_t day;
++	enum months month;
++	uint32_t year;
++};
++
++void stm32_rtc_get_calendar(struct stm32_rtc_calendar *calendar);
++unsigned long long stm32_rtc_diff_calendar(struct stm32_rtc_calendar *current,
++					   struct stm32_rtc_calendar *ref);
++void stm32_rtc_set_tamper_timestamp(void);
++bool stm32_rtc_is_timestamp_enable(void);
++void stm32_rtc_get_timestamp(struct stm32_rtc_time *tamp_ts);
++int stm32_rtc_init(void);
++
++/* SMP protection on RTC registers access */
++void stm32_rtc_regs_lock(void);
++void stm32_rtc_regs_unlock(void);
++
++#endif /* STM32_RTC_H */
+diff --git a/include/drivers/st/stm32mp1_clk.h b/include/drivers/st/stm32mp1_clk.h
+index 1ebd39ff7..81ae5d8ae 100644
+--- a/include/drivers/st/stm32mp1_clk.h
++++ b/include/drivers/st/stm32mp1_clk.h
+@@ -53,6 +53,8 @@ static inline void stm32mp1_clk_disable_secure(unsigned long id)
+ 
+ unsigned int stm32mp1_clk_get_refcount(unsigned long id);
+ 
++bool stm32mp1_rtc_get_read_twice(void);
++
+ /* SMP protection on RCC registers access */
+ void stm32mp1_clk_rcc_regs_lock(void);
+ void stm32mp1_clk_rcc_regs_unlock(void);
+diff --git a/plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk b/plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk
+index 4188cc58a..6c7107ca2 100644
+--- a/plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk
++++ b/plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk
+@@ -7,6 +7,7 @@
+ SP_MIN_WITH_SECURE_FIQ	:=	1
+ 
+ BL32_SOURCES		+=	plat/common/aarch32/platform_mp_stack.S		\
++				drivers/st/rtc/stm32_rtc.c			\
+ 				plat/st/stm32mp1/sp_min/sp_min_setup.c		\
+ 				plat/st/stm32mp1/stm32mp1_pm.c			\
+ 				plat/st/stm32mp1/stm32mp1_topology.c
+diff --git a/plat/st/stm32mp1/sp_min/sp_min_setup.c b/plat/st/stm32mp1/sp_min/sp_min_setup.c
+index e10dfbfc0..ff69358e0 100644
+--- a/plat/st/stm32mp1/sp_min/sp_min_setup.c
++++ b/plat/st/stm32mp1/sp_min/sp_min_setup.c
+@@ -20,6 +20,7 @@
+ #include <drivers/st/stm32_console.h>
+ #include <drivers/st/stm32_gpio.h>
+ #include <drivers/st/stm32_iwdg.h>
++#include <drivers/st/stm32_rtc.h>
+ #include <drivers/st/stm32mp1_clk.h>
+ #include <dt-bindings/clock/stm32mp1-clks.h>
+ #include <lib/el3_runtime/context_mgmt.h>
+@@ -147,16 +148,11 @@ void sp_min_early_platform_setup2(u_register_t arg0, u_register_t arg1,
+ }
+ 
+ /*******************************************************************************
+- * Initialize the MMU, security and the GIC.
++ * Set security setup in sp_min
+  ******************************************************************************/
+-void sp_min_platform_setup(void)
++static void stm32mp1_sp_min_security_setup(void)
+ {
+-	/* Initialize tzc400 after DDR initialization */
+-	stm32mp1_security_setup();
+-
+-	generic_delay_timer_init();
+-
+-	stm32mp1_gic_init();
++	int ret;
+ 
+ 	/* Unlock ETZPC securable peripherals */
+ #define STM32MP1_ETZPC_BASE	0x5C007000U
+@@ -168,6 +164,28 @@ void sp_min_platform_setup(void)
+ 		set_gpio_secure_cfg(GPIO_BANK_Z, pin, false);
+ 	}
+ 
++	/* Init rtc driver */
++	ret = stm32_rtc_init();
++	if (ret < 0) {
++		WARN("RTC driver init error %i\n", ret);
++	}
++}
++
++/*******************************************************************************
++ * Initialize the MMU, security and the GIC.
++ ******************************************************************************/
++void sp_min_platform_setup(void)
++{
++	/* Initialize tzc400 after DDR initialization */
++	stm32mp1_security_setup();
++
++	generic_delay_timer_init();
++
++	stm32mp1_gic_init();
++
++	/* Update security settings */
++	stm32mp1_sp_min_security_setup();
++
+ 	if (stm32_iwdg_init() < 0) {
+ 		panic();
+ 	}
+-- 
+2.27.0
+

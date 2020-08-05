@@ -1,0 +1,3 @@
+# packages
+
+source "$BR2_EXTERNAL_MynaPlayer_PATH/packages/Config.in"

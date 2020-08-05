@@ -1,0 +1,48 @@
+From 5011a3d9cbfa734a34718cc2471ef481550b3032 Mon Sep 17 00:00:00 2001
+From: Jookia <contact@jookia.org>
+Date: Tue, 4 Aug 2020 10:21:47 +1000
+Subject: [PATCH 3/4] dts: stm32mp157c-odyssey: Add Ethernet support
+
+This uses PLL4_P as the internal Ethernet clock, so ATF or U-Boot must
+clock PLL4 to 750MHz for this to work.
+---
+ arch/arm/dts/stm32mp157c-odyssey.dts | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+diff --git a/arch/arm/dts/stm32mp157c-odyssey.dts b/arch/arm/dts/stm32mp157c-odyssey.dts
+index 8b570443b..182a5149d 100644
+--- a/arch/arm/dts/stm32mp157c-odyssey.dts
++++ b/arch/arm/dts/stm32mp157c-odyssey.dts
+@@ -93,3 +93,29 @@
+ &phy0 {
+ 	reset-gpios = <&gpiog 0 GPIO_ACTIVE_LOW>;
+ };
++
++&ethernet0 {
++        status = "okay";
++        pinctrl-0 = <&ethernet0_rgmii_pins_a>;
++        pinctrl-1 = <&ethernet0_rgmii_sleep_pins_a>;
++        pinctrl-names = "default", "sleep";
++        phy-mode = "rgmii-id";
++        max-speed = <1000>;
++        phy-handle = <&phy0>;
++        assigned-clocks = <&rcc ETHCK_K>, <&rcc PLL4_P>;
++        assigned-clock-parents = <&rcc PLL4_P>;
++        assigned-clock-rates = <125000000>;
++        st,eth-clk-sel;
++
++        mdio0 {
++                #address-cells = <1>;
++                #size-cells = <0>;
++                compatible = "snps,dwmac-mdio";
++                phy0: ethernet-phy@7 { /* KSZ9031RN */
++                        reg = <7>;
++                        reset-gpios = <&gpiog 0 GPIO_ACTIVE_LOW>; /* ETH_RST# */
++                        reset-assert-us = <10000>;
++                        reset-deassert-us = <300>;
++                };
++        };
++};
+-- 
+2.28.0
+

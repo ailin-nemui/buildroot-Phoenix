@@ -1,0 +1,70 @@
+From 4d4214a8dea31d531df6739e6f74005090018faa Mon Sep 17 00:00:00 2001
+From: Yann Gautier <yann.gautier@st.com>
+Date: Wed, 24 Apr 2019 13:38:41 +0200
+Subject: [PATCH 5/7] stm32mp: add function to protect access on PWR registers
+
+In SMP context, we need to add spinlocks to protect against concurrent
+accesses on PWR registers.
+
+Change-Id: I27cb698ffa085eca7b61b042ce5ccaa1fd2daaf4
+Signed-off-by: Yann Gautier <yann.gautier@st.com>
+---
+ plat/st/common/include/stm32mp_common.h |  4 ++++
+ plat/st/common/stm32mp_common.c         | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/plat/st/common/include/stm32mp_common.h b/plat/st/common/include/stm32mp_common.h
+index 4f8567979..052402854 100644
+--- a/plat/st/common/include/stm32mp_common.h
++++ b/plat/st/common/include/stm32mp_common.h
+@@ -33,6 +33,10 @@ uintptr_t stm32mp_rcc_base(void);
+ /* Check MMU status to allow spinlock use */
+ bool stm32mp_lock_available(void);
+ 
++/* SMP protection on PWR registers access */
++void stm32mp_pwr_regs_lock(void);
++void stm32mp_pwr_regs_unlock(void);
++
+ /* Get IWDG platform instance ID from peripheral IO memory base address */
+ uint32_t stm32_iwdg_get_instance(uintptr_t base);
+ 
+diff --git a/plat/st/common/stm32mp_common.c b/plat/st/common/stm32mp_common.c
+index afa87f487..5e7c74b48 100644
+--- a/plat/st/common/stm32mp_common.c
++++ b/plat/st/common/stm32mp_common.c
+@@ -12,8 +12,11 @@
+ #include <arch_helpers.h>
+ #include <common/debug.h>
+ #include <drivers/st/stm32mp_clkfunc.h>
++#include <lib/spinlock.h>
+ #include <plat/common/platform.h>
+ 
++static struct spinlock lock;
++
+ uintptr_t plat_get_ns_image_entrypoint(void)
+ {
+ 	return BL33_BASE;
+@@ -96,6 +99,20 @@ bool stm32mp_lock_available(void)
+ 	return (read_sctlr() & c_m_bits) == c_m_bits;
+ }
+ 
++void stm32mp_pwr_regs_lock(void)
++{
++	if (stm32mp_lock_available()) {
++		spin_lock(&lock);
++	}
++}
++
++void stm32mp_pwr_regs_unlock(void)
++{
++	if (stm32mp_lock_available()) {
++		spin_unlock(&lock);
++	}
++}
++
+ uintptr_t stm32_get_gpio_bank_base(unsigned int bank)
+ {
+ 	if (bank == GPIO_BANK_Z) {
+-- 
+2.27.0
+

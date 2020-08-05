@@ -1,0 +1,2889 @@
+From 89dcbaa9307e004bd4f009de6554cab2632a9c15 Mon Sep 17 00:00:00 2001
+From: Yann Gautier <yann.gautier@st.com>
+Date: Mon, 20 May 2019 19:20:30 +0200
+Subject: [PATCH 7/7] stm32mp1: add low power management
+
+Change-Id: I8e0ba794e5ded1290fb83fe8d43ce54d4dc0e320
+Signed-off-by: Yann Gautier <yann.gautier@st.com>
+---
+ drivers/st/ddr/stm32mp1_ram.c                 |  92 ++-
+ drivers/st/pmic/stm32mp_pmic.c                |  95 +++
+ drivers/st/pmic/stpmic1.c                     |  52 ++
+ fdts/stm32mp157a-dk1.dts                      | 136 ++++
+ fdts/stm32mp157c-ed1.dts                      | 150 +++++
+ include/drivers/st/stm32mp1_pwr.h             |  21 +-
+ include/drivers/st/stm32mp_pmic.h             |   2 +
+ include/drivers/st/stpmic1.h                  |   4 +
+ include/dt-bindings/power/stm32mp1-power.h    |  19 +
+ plat/st/stm32mp1/bl2_plat_setup.c             |  33 +
+ plat/st/stm32mp1/include/boot_api.h           | 105 ++-
+ plat/st/stm32mp1/include/platform_def.h       |   2 +
+ plat/st/stm32mp1/include/stm32mp1_context.h   |  13 +-
+ plat/st/stm32mp1/include/stm32mp1_low_power.h |  19 +
+ .../stm32mp1/include/stm32mp1_power_config.h  |  19 +
+ plat/st/stm32mp1/include/stm32mp1_private.h   |   3 +
+ plat/st/stm32mp1/plat_image_load.c            |  63 +-
+ plat/st/stm32mp1/platform.mk                  |   4 +
+ plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk    |   4 +
+ plat/st/stm32mp1/sp_min/sp_min_setup.c        |  79 ++-
+ plat/st/stm32mp1/stm32mp1_context.c           | 199 ++++++
+ plat/st/stm32mp1/stm32mp1_def.h               |   4 +
+ plat/st/stm32mp1/stm32mp1_low_power.c         | 327 ++++++++++
+ plat/st/stm32mp1/stm32mp1_pm.c                |  88 ++-
+ plat/st/stm32mp1/stm32mp1_power_config.c      | 130 ++++
+ plat/st/stm32mp1/stm32mp1_private.c           |  39 ++
+ .../stm32mp1/stm32mp1_shared_resources.c.bak  | 597 ++++++++++++++++++
+ 27 files changed, 2268 insertions(+), 31 deletions(-)
+ create mode 100644 include/dt-bindings/power/stm32mp1-power.h
+ create mode 100644 plat/st/stm32mp1/include/stm32mp1_low_power.h
+ create mode 100644 plat/st/stm32mp1/include/stm32mp1_power_config.h
+ create mode 100644 plat/st/stm32mp1/stm32mp1_low_power.c
+ create mode 100644 plat/st/stm32mp1/stm32mp1_power_config.c
+ create mode 100644 plat/st/stm32mp1/stm32mp1_shared_resources.c.bak
+
+diff --git a/drivers/st/ddr/stm32mp1_ram.c b/drivers/st/ddr/stm32mp1_ram.c
+index 4ae55fcc7..f94980c94 100644
+--- a/drivers/st/ddr/stm32mp1_ram.c
++++ b/drivers/st/ddr/stm32mp1_ram.c
+@@ -49,6 +49,26 @@ int stm32mp1_ddr_clk_enable(struct ddr_info *priv, uint32_t mem_speed)
+ 	return 0;
+ }
+ 
++/*******************************************************************************
++ * This function tests a simple read/write access to the DDR.
++ * Note that the previous content is restored after test.
++ * Returns 0 if success, and address value else.
++ ******************************************************************************/
++static uint32_t ddr_test_rw_access(void)
++{
++	uint32_t saved_value = mmio_read_32(STM32MP_DDR_BASE);
++
++	mmio_write_32(STM32MP_DDR_BASE, DDR_PATTERN);
++
++	if (mmio_read_32(STM32MP_DDR_BASE) != DDR_PATTERN) {
++		return (uint32_t)STM32MP_DDR_BASE;
++	}
++
++	mmio_write_32(STM32MP_DDR_BASE, saved_value);
++
++	return 0;
++}
++
+ /*******************************************************************************
+  * This function tests the DDR data bus wiring.
+  * This is inspired from the Data Bus Test algorithm written by Michael Barr
+@@ -168,8 +188,12 @@ static int stm32mp1_ddr_setup(void)
+ 	int ret;
+ 	struct stm32mp1_ddr_config config;
+ 	int node, len;
+-	uint32_t uret, idx;
++	uint32_t magic, uret, idx;
+ 	void *fdt;
++	uint32_t bkpr_core1_addr =
++		tamp_bkpr(BOOT_API_CORE1_BRANCH_ADDRESS_TAMP_BCK_REG_IDX);
++	uint32_t bkpr_core1_magic =
++		tamp_bkpr(BOOT_API_CORE1_MAGIC_NUMBER_TAMP_BCK_REG_IDX);
+ 
+ #define PARAM(x, y)							\
+ 	{								\
+@@ -237,6 +261,18 @@ static int stm32mp1_ddr_setup(void)
+ 		}
+ 	}
+ 
++	config.self_refresh = false;
++
++	stm32mp_clk_enable(RTCAPB);
++
++	magic =	mmio_read_32(bkpr_core1_magic);
++	if (magic == BOOT_API_A7_CORE0_MAGIC_NUMBER) {
++		config.self_refresh = true;
++		config.zdata = stm32_get_zdata_from_context();
++	}
++
++	stm32mp_clk_disable(RTCAPB);
++
+ 	/* Disable axidcg clock gating during init */
+ 	mmio_clrbits_32(priv->rcc + RCC_DDRITFCR, RCC_DDRITFCR_AXIDCGEN);
+ 
+@@ -245,6 +281,14 @@ static int stm32mp1_ddr_setup(void)
+ 	/* Enable axidcg clock gating */
+ 	mmio_setbits_32(priv->rcc + RCC_DDRITFCR, RCC_DDRITFCR_AXIDCGEN);
+ 
++	/* check if DDR content is lost (self-refresh aborted) */
++	if ((magic == BOOT_API_A7_CORE0_MAGIC_NUMBER) && !config.self_refresh) {
++		/* clear Backup register */
++		mmio_write_32(bkpr_core1_addr, 0);
++		/* clear magic number */
++		mmio_write_32(bkpr_core1_magic, 0);
++	}
++
+ 	priv->info.size = config.info.size;
+ 
+ 	VERBOSE("%s : ram size(%x, %x)\n", __func__,
+@@ -253,25 +297,37 @@ static int stm32mp1_ddr_setup(void)
+ 	write_sctlr(read_sctlr() & ~SCTLR_C_BIT);
+ 	dcsw_op_all(DC_OP_CISW);
+ 
+-	uret = ddr_test_data_bus();
+-	if (uret != 0U) {
+-		ERROR("DDR data bus test: can't access memory @ 0x%x\n",
+-		      uret);
+-		panic();
+-	}
++	if (config.self_refresh) {
++		uret = ddr_test_rw_access();
++		if (uret != 0U) {
++			ERROR("DDR rw test: Can't access memory @ 0x%x\n",
++			      uret);
++			panic();
++		}
+ 
+-	uret = ddr_test_addr_bus();
+-	if (uret != 0U) {
+-		ERROR("DDR addr bus test: can't access memory @ 0x%x\n",
+-		      uret);
+-		panic();
+-	}
++		/* Restore area overwritten by training */
++		stm32_restore_ddr_training_area();
++	} else {
++		uret = ddr_test_data_bus();
++		if (uret != 0U) {
++			ERROR("DDR data bus test: can't access memory @ 0x%x\n",
++			      uret);
++			panic();
++		}
+ 
+-	uret = ddr_check_size();
+-	if (uret < config.info.size) {
+-		ERROR("DDR size: 0x%x does not match DT config: 0x%x\n",
+-		      uret, config.info.size);
+-		panic();
++		uret = ddr_test_addr_bus();
++		if (uret != 0U) {
++			ERROR("DDR addr bus test: can't access memory @ 0x%x\n",
++			      uret);
++			panic();
++		}
++
++		uret = ddr_check_size();
++		if (uret < config.info.size) {
++			ERROR("DDR size: 0x%x does not match DT config: 0x%x\n",
++			      uret, config.info.size);
++			panic();
++		}
+ 	}
+ 
+ 	write_sctlr(read_sctlr() | SCTLR_C_BIT);
+diff --git a/drivers/st/pmic/stm32mp_pmic.c b/drivers/st/pmic/stm32mp_pmic.c
+index 9e9dddc4d..dc44b735f 100644
+--- a/drivers/st/pmic/stm32mp_pmic.c
++++ b/drivers/st/pmic/stm32mp_pmic.c
+@@ -27,6 +27,8 @@
+ #define STPMIC1_BUCK_OUTPUT_SHIFT	2
+ #define STPMIC1_BUCK3_1V8		(39U << STPMIC1_BUCK_OUTPUT_SHIFT)
+ 
++#define REGULATOR_MODE_STANDBY		8U
++
+ #define STPMIC1_DEFAULT_START_UP_DELAY_MS	1
+ 
+ static struct i2c_handle_s i2c_handle;
+@@ -174,6 +176,99 @@ int dt_pmic_configure_boot_on_regulators(void)
+ 	return 0;
+ }
+ 
++int dt_pmic_set_lp_config(const char *node_name)
++{
++	int pmic_node, regulators_node, regulator_node;
++	int status;
++	void *fdt;
++
++	if (node_name == NULL) {
++		return 0;
++	}
++
++	if (fdt_get_address(&fdt) == 0) {
++		return -ENOENT;
++	}
++
++	pmic_node = dt_get_pmic_node(fdt);
++	if (pmic_node < 0) {
++		return -FDT_ERR_NOTFOUND;
++	}
++
++	status = stpmic1_powerctrl_on();
++	if (status != 0) {
++		return status;
++	};
++
++	regulators_node = fdt_subnode_offset(fdt, pmic_node, "regulators");
++
++	fdt_for_each_subnode(regulator_node, fdt, regulators_node) {
++		const fdt32_t *cuint;
++		const char *reg_name;
++		int regulator_state_node;
++
++		/*
++		 * First, copy active configuration (Control register) to
++		 * PWRCTRL Control register, even if regulator_state_node
++		 * does not exist.
++		 */
++		reg_name = fdt_get_name(fdt, regulator_node, NULL);
++		status = stpmic1_lp_copy_reg(reg_name);
++		if (status != 0) {
++			return status;
++		}
++
++		/* Then apply configs from regulator_state_node */
++		regulator_state_node = fdt_subnode_offset(fdt,
++							  regulator_node,
++							  node_name);
++		if (regulator_state_node <= 0) {
++			continue;
++		}
++
++		if (fdt_getprop(fdt, regulator_state_node,
++				"regulator-on-in-suspend", NULL) != NULL) {
++			status = stpmic1_lp_reg_on_off(reg_name, 1);
++			if (status != 0) {
++				return status;
++			}
++		}
++
++		if (fdt_getprop(fdt, regulator_state_node,
++				"regulator-off-in-suspend", NULL) != NULL) {
++			status = stpmic1_lp_reg_on_off(reg_name, 0);
++			if (status != 0) {
++				return status;
++			}
++		}
++
++		cuint = fdt_getprop(fdt, regulator_state_node,
++				    "regulator-suspend-microvolt", NULL);
++		if (cuint != NULL) {
++			uint16_t voltage = (uint16_t)(fdt32_to_cpu(*cuint) /
++						      1000U);
++
++			status = stpmic1_lp_set_voltage(reg_name, voltage);
++			if (status != 0) {
++				return status;
++			}
++		}
++
++		cuint = fdt_getprop(fdt, regulator_state_node,
++				    "regulator-mode", NULL);
++		if (cuint != NULL) {
++			if (fdt32_to_cpu(*cuint) == REGULATOR_MODE_STANDBY) {
++				status = stpmic1_lp_set_mode(reg_name, 1);
++				if (status != 0) {
++					return status;
++				}
++			}
++		}
++	}
++
++	return 0;
++}
++
+ bool initialize_pmic_i2c(void)
+ {
+ 	int ret;
+diff --git a/drivers/st/pmic/stpmic1.c b/drivers/st/pmic/stpmic1.c
+index 999963054..51754fc3b 100644
+--- a/drivers/st/pmic/stpmic1.c
++++ b/drivers/st/pmic/stpmic1.c
+@@ -648,6 +648,58 @@ int stpmic1_regulator_mask_reset_set(const char *name)
+ 				       regul->mask_reset);
+ }
+ 
++/* Low-power functions */
++int stpmic1_lp_copy_reg(const char *name)
++{
++	uint8_t val;
++	int status;
++	const struct regul_struct *regul = get_regulator_data(name);
++
++	status = stpmic1_register_read(regul->control_reg, &val);
++	if (status != 0) {
++		return status;
++	}
++
++	return stpmic1_register_write(regul->low_power_reg, val);
++}
++
++int stpmic1_lp_reg_on_off(const char *name, uint8_t enable)
++{
++	const struct regul_struct *regul = get_regulator_data(name);
++
++	return stpmic1_register_update(regul->low_power_reg, enable,
++				       LDO_BUCK_ENABLE_MASK);
++}
++
++int stpmic1_lp_set_mode(const char *name, uint8_t hplp)
++{
++	const struct regul_struct *regul = get_regulator_data(name);
++
++	return stpmic1_register_update(regul->low_power_reg,
++				       hplp << LDO_BUCK_HPLP_SHIFT,
++				       LDO_BUCK_HPLP_ENABLE_MASK);
++}
++
++int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts)
++{
++	uint8_t voltage_index = voltage_to_index(name, millivolts);
++	const struct regul_struct *regul = get_regulator_data(name);
++	uint8_t mask;
++
++	/* Voltage can be set for buck<N> or ldo<N> (except ldo4) regulators */
++	if (strncmp(name, "buck", 4) == 0) {
++		mask = BUCK_VOLTAGE_MASK;
++	} else if ((strncmp(name, "ldo", 3) == 0) &&
++		   (strncmp(name, "ldo4", 4) != 0)) {
++		mask = LDO_VOLTAGE_MASK;
++	} else {
++		return 0;
++	}
++
++	return stpmic1_register_update(regul->low_power_reg, voltage_index << 2,
++				       mask);
++}
++
+ int stpmic1_regulator_voltage_get(const char *name)
+ {
+ 	const struct regul_struct *regul = get_regulator_data(name);
+diff --git a/fdts/stm32mp157a-dk1.dts b/fdts/stm32mp157a-dk1.dts
+index 78681b0ba..2eced8f53 100644
+--- a/fdts/stm32mp157a-dk1.dts
++++ b/fdts/stm32mp157a-dk1.dts
+@@ -192,6 +192,7 @@
+ 
+ /* ATF Specific */
+ #include <dt-bindings/clock/stm32mp1-clksrc.h>
++#include <dt-bindings/power/stm32mp1-power.h>
+ #include "stm32mp15-ddr3-1x4Gb-1066-binG.dtsi"
+ #include "stm32mp157c-security.dtsi"
+ 
+@@ -309,3 +310,138 @@
+ 		secure-status = "okay";
+ 	};
+ };
++
++&pwr {
++	system_suspend_supported_soc_modes = <
++		STM32_PM_CSLEEP_RUN
++		STM32_PM_CSTOP_ALLOW_LP_STOP
++		STM32_PM_CSTOP_ALLOW_STANDBY_DDR_SR
++	>;
++
++	system_off_soc_mode = <STM32_PM_CSTOP_ALLOW_STANDBY_DDR_OFF>;
++};
++
++/* Low-power states of regulators */
++&vddcore {
++	lp-stop {
++		regulator-on-in-suspend;
++		regulator-suspend-microvolt = <1200000>;
++	};
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vdd_ddr {
++	lp-stop {
++		regulator-suspend-microvolt = <1350000>;
++		regulator-on-in-suspend;
++	};
++	standby-ddr-sr {
++		regulator-suspend-microvolt = <1350000>;
++		regulator-on-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vdd {
++	lp-stop {
++		regulator-suspend-microvolt = <3300000>;
++		regulator-on-in-suspend;
++	};
++	standby-ddr-sr {
++		regulator-suspend-microvolt = <3300000>;
++		regulator-on-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-suspend-microvolt = <3300000>;
++		regulator-on-in-suspend;
++	};
++};
++
++&v3v3 {
++	lp-stop {
++		regulator-suspend-microvolt = <3300000>;
++		regulator-on-in-suspend;
++	};
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&v1v8_audio {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&v3v3_hdmi {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vtt_ddr {
++	lp-stop {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vdd_usb {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vdda {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&v1v2_hdmi {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vref_ddr {
++	lp-stop {
++		regulator-on-in-suspend;
++	};
++	standby-ddr-sr {
++		regulator-on-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
+diff --git a/fdts/stm32mp157c-ed1.dts b/fdts/stm32mp157c-ed1.dts
+index 779492552..d766cc6a8 100644
+--- a/fdts/stm32mp157c-ed1.dts
++++ b/fdts/stm32mp157c-ed1.dts
+@@ -196,6 +196,7 @@
+ 
+ /* ATF Specific */
+ #include <dt-bindings/clock/stm32mp1-clksrc.h>
++#include <dt-bindings/power/stm32mp1-power.h>
+ #include "stm32mp15-ddr3-2x4Gb-1066-binG.dtsi"
+ #include "stm32mp157c-security.dtsi"
+ 
+@@ -315,3 +316,152 @@
+ 		secure-status = "okay";
+ 	};
+ };
++
++&pwr {
++	system_suspend_supported_soc_modes = <
++		STM32_PM_CSLEEP_RUN
++		STM32_PM_CSTOP_ALLOW_LP_STOP
++		STM32_PM_CSTOP_ALLOW_LPLV_STOP
++		STM32_PM_CSTOP_ALLOW_STANDBY_DDR_SR
++	>;
++	system_off_soc_mode = <STM32_PM_CSTOP_ALLOW_STANDBY_DDR_OFF>;
++};
++
++/* Low-power states of regulators */
++&vddcore {
++	lp-stop {
++		regulator-on-in-suspend;
++		regulator-suspend-microvolt = <1200000>;
++	};
++	lplv-stop {
++		regulator-on-in-suspend;
++		regulator-suspend-microvolt = <900000>;
++	};
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vdd_ddr {
++	lp-stop {
++		regulator-suspend-microvolt = <1350000>;
++		regulator-on-in-suspend;
++	};
++	lplv-stop {
++		regulator-suspend-microvolt = <1350000>;
++		regulator-on-in-suspend;
++	};
++	standby-ddr-sr {
++		regulator-suspend-microvolt = <1350000>;
++		regulator-on-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vdd {
++	lp-stop {
++		regulator-suspend-microvolt = <3300000>;
++		regulator-on-in-suspend;
++	};
++	lplv-stop {
++		regulator-suspend-microvolt = <3300000>;
++		regulator-on-in-suspend;
++	};
++	standby-ddr-sr {
++		regulator-suspend-microvolt = <3300000>;
++		regulator-on-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-suspend-microvolt = <3300000>;
++		regulator-on-in-suspend;
++	};
++};
++
++&v3v3 {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vdda {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&v2v8 {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vtt_ddr {
++	lp-stop {
++		regulator-off-in-suspend;
++	};
++	lplv-stop {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vdd_usb {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vdd_sd {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&v1v8 {
++	standby-ddr-sr {
++		regulator-off-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
++
++&vref_ddr {
++	lp-stop {
++		regulator-on-in-suspend;
++	};
++	lplv-stop {
++		regulator-on-in-suspend;
++	};
++	standby-ddr-sr {
++		regulator-on-in-suspend;
++	};
++	standby-ddr-off {
++		regulator-off-in-suspend;
++	};
++};
+diff --git a/include/drivers/st/stm32mp1_pwr.h b/include/drivers/st/stm32mp1_pwr.h
+index e17df44fb..9b662f2d1 100644
+--- a/include/drivers/st/stm32mp1_pwr.h
++++ b/include/drivers/st/stm32mp1_pwr.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2017-2018, STMicroelectronics - All Rights Reserved
++ * Copyright (c) 2017-2019, STMicroelectronics - All Rights Reserved
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+@@ -13,20 +13,39 @@
+ #define PWR_CR2			U(0x08)
+ #define PWR_CR3			U(0x0C)
+ #define PWR_MPUCR		U(0x10)
++#define PWR_MCUCR		U(0x14)
+ #define PWR_WKUPCR		U(0x20)
+ #define PWR_MPUWKUPENR		U(0x28)
+ 
++#define PWR_OFFSET_MASK		GENMASK(9, 0)
++
+ #define PWR_CR1_LPDS		BIT(0)
+ #define PWR_CR1_LPCFG		BIT(1)
+ #define PWR_CR1_LVDS		BIT(2)
+ #define PWR_CR1_DBP		BIT(8)
+ 
++#define PWR_CR2_BREN		BIT(0)
++#define PWR_CR2_RREN		BIT(1)
++#define PWR_CR2_BRRDY		BIT(16)
++#define PWR_CR2_RRRDY		BIT(17)
++
++#define PWR_CR3_VBE		BIT(8)
++#define PWR_CR3_VBRS		BIT(9)
+ #define PWR_CR3_DDRSREN		BIT(10)
+ #define PWR_CR3_DDRSRDIS	BIT(11)
+ #define PWR_CR3_DDRRETEN	BIT(12)
++#define PWR_CR3_USB33DEN	BIT(24)
++#define PWR_CR3_REG18EN		BIT(28)
++#define PWR_CR3_REG11EN		BIT(30)
+ 
+ #define PWR_MPUCR_PDDS		BIT(0)
+ #define PWR_MPUCR_CSTDBYDIS	BIT(3)
+ #define PWR_MPUCR_CSSF		BIT(9)
+ 
++#define PWR_MCUCR_PDDS		BIT(0)
++
++#define PWR_WKUPCR_MASK		GENMASK(27, 16) | GENMASK(13, 8) | GENMASK(5, 0)
++
++#define PWR_MPUWKUPENR_MASK	GENMASK(5, 0)
++
+ #endif /* STM32MP1_PWR_H */
+diff --git a/include/drivers/st/stm32mp_pmic.h b/include/drivers/st/stm32mp_pmic.h
+index 984cd6014..f5810f38c 100644
+--- a/include/drivers/st/stm32mp_pmic.h
++++ b/include/drivers/st/stm32mp_pmic.h
+@@ -27,6 +27,8 @@ int dt_pmic_status(void);
+  */
+ int dt_pmic_configure_boot_on_regulators(void);
+ 
++int dt_pmic_set_lp_config(const char *node_name);
++
+ /*
+  * initialize_pmic_i2c - Initialize I2C for the PMIC control
+  *
+diff --git a/include/drivers/st/stpmic1.h b/include/drivers/st/stpmic1.h
+index f7e293b18..e4ceea5e9 100644
+--- a/include/drivers/st/stpmic1.h
++++ b/include/drivers/st/stpmic1.h
+@@ -161,6 +161,10 @@ int stpmic1_regulator_voltage_set(const char *name, uint16_t millivolts);
+ int stpmic1_regulator_voltage_get(const char *name);
+ int stpmic1_regulator_pull_down_set(const char *name);
+ int stpmic1_regulator_mask_reset_set(const char *name);
++int stpmic1_lp_copy_reg(const char *name);
++int stpmic1_lp_reg_on_off(const char *name, uint8_t enable);
++int stpmic1_lp_set_mode(const char *name, uint8_t hplp);
++int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts);
+ void stpmic1_bind_i2c(struct i2c_handle_s *i2c_handle, uint16_t i2c_addr);
+ 
+ int stpmic1_get_version(unsigned long *version);
+diff --git a/include/dt-bindings/power/stm32mp1-power.h b/include/dt-bindings/power/stm32mp1-power.h
+new file mode 100644
+index 000000000..d588dd71f
+--- /dev/null
++++ b/include/dt-bindings/power/stm32mp1-power.h
+@@ -0,0 +1,19 @@
++/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
++/*
++ * Copyright (C) 2018-2019, STMicroelectronics - All Rights Reserved
++ * Author: Yann Gautier <yann.gautier@st.com> for STMicroelectronics.
++ */
++
++#ifndef DT_BINDINGS_STM32MP1_POWER_H
++#define DT_BINDINGS_STM32MP1_POWER_H
++
++#define STM32_PM_CSLEEP_RUN			0
++#define STM32_PM_CSTOP_ALLOW_STOP		1
++#define STM32_PM_CSTOP_ALLOW_LP_STOP		2
++#define STM32_PM_CSTOP_ALLOW_LPLV_STOP		3
++#define STM32_PM_CSTOP_ALLOW_STANDBY_DDR_SR	4
++#define STM32_PM_CSTOP_ALLOW_STANDBY_DDR_OFF	5
++#define STM32_PM_SHUTDOWN			6
++#define STM32_PM_MAX_SOC_MODE			7
++
++#endif /* DT_BINDINGS_STM32MP1_POWER_H */
+diff --git a/plat/st/stm32mp1/bl2_plat_setup.c b/plat/st/stm32mp1/bl2_plat_setup.c
+index d9e29b4e8..c729c0238 100644
+--- a/plat/st/stm32mp1/bl2_plat_setup.c
++++ b/plat/st/stm32mp1/bl2_plat_setup.c
+@@ -31,6 +31,8 @@
+ #include <stm32mp1_context.h>
+ #include <stm32mp1_dbgmcu.h>
+ 
++#define PWRLP_TEMPO_5_HSI	5
++
+ static struct console_stm32 console;
+ static struct stm32mp_auth_ops stm32mp1_auth_ops;
+ 
+@@ -160,6 +162,10 @@ void bl2_el3_plat_arch_setup(void)
+ 	uint32_t clk_rate;
+ 	uintptr_t pwr_base;
+ 	uintptr_t rcc_base;
++	uint32_t bkpr_core1_magic =
++		tamp_bkpr(BOOT_API_CORE1_MAGIC_NUMBER_TAMP_BCK_REG_IDX);
++	uint32_t bkpr_core1_addr =
++		tamp_bkpr(BOOT_API_CORE1_BRANCH_ADDRESS_TAMP_BCK_REG_IDX);
+ 
+ 	mmap_add_region(BL_CODE_BASE, BL_CODE_BASE,
+ 			BL_CODE_END - BL_CODE_BASE,
+@@ -204,6 +210,11 @@ void bl2_el3_plat_arch_setup(void)
+ 	pwr_base = stm32mp_pwr_base();
+ 	rcc_base = stm32mp_rcc_base();
+ 
++	/* Clear Stop Request bits to correctly manage low-power exit */
++	mmio_write_32(rcc_base + RCC_MP_SREQCLRR,
++		      (uint32_t)(RCC_MP_SREQCLRR_STPREQ_P0 |
++				 RCC_MP_SREQCLRR_STPREQ_P1));
++
+ 	/*
+ 	 * Disable the backup domain write protection.
+ 	 * The protection is enable at each reset by hardware
+@@ -215,6 +226,12 @@ void bl2_el3_plat_arch_setup(void)
+ 		;
+ 	}
+ 
++	/*
++	 * Configure Standby mode available for MCU by default
++	 * and allow to switch in standby SoC in all case
++	 */
++	mmio_setbits_32(pwr_base + PWR_MCUCR, PWR_MCUCR_PDDS);
++
+ 	if (bsec_probe() != 0) {
+ 		panic();
+ 	}
+@@ -231,9 +248,25 @@ void bl2_el3_plat_arch_setup(void)
+ 		mmio_clrbits_32(rcc_base + RCC_BDCR, RCC_BDCR_VSWRST);
+ 	}
+ 
++	/* Wait 5 HSI periods before re-enabling PLLs after STOP modes */
++	mmio_clrsetbits_32(rcc_base + RCC_PWRLPDLYCR,
++			   RCC_PWRLPDLYCR_PWRLP_DLY_MASK,
++			   PWRLP_TEMPO_5_HSI);
++
++	/* Disable retention and backup RAM content after standby */
++	mmio_clrbits_32(pwr_base + PWR_CR2, PWR_CR2_BREN | PWR_CR2_RREN);
++
+ 	/* Disable MCKPROT */
+ 	mmio_clrbits_32(rcc_base + RCC_TZCR, RCC_TZCR_MCKPROT);
+ 
++	if ((boot_context->boot_action !=
++	     BOOT_API_CTX_BOOT_ACTION_WAKEUP_CSTANDBY) &&
++	    (boot_context->boot_action !=
++	     BOOT_API_CTX_BOOT_ACTION_WAKEUP_STANDBY)) {
++		mmio_write_32(bkpr_core1_addr, 0);
++		mmio_write_32(bkpr_core1_magic, 0);
++	}
++
+ 	generic_delay_timer_init();
+ 
+ 	if (stm32mp1_clk_probe() < 0) {
+diff --git a/plat/st/stm32mp1/include/boot_api.h b/plat/st/stm32mp1/include/boot_api.h
+index 2284970fa..6088b3701 100644
+--- a/plat/st/stm32mp1/include/boot_api.h
++++ b/plat/st/stm32mp1/include/boot_api.h
+@@ -10,6 +10,90 @@
+ #include <stdint.h>
+ #include <stdio.h>
+ 
++/*
++ * Exported constants
++ */
++
++/*
++ * Boot Context related definitions
++ */
++
++/*
++ * Possible value of boot context field 'boot_action'
++ */
++/* Boot action is Process Cold Boot */
++#define BOOT_API_CTX_BOOT_ACTION_COLD_BOOT_PROCESS		0x09U
++/* Boot action is Process Wakeup from CSTANDBY */
++#define BOOT_API_CTX_BOOT_ACTION_WAKEUP_CSTANDBY		0x0AU
++/* Boot action is Process Wakeup from STANDBY  */
++#define BOOT_API_CTX_BOOT_ACTION_WAKEUP_STANDBY			0x0BU
++/* Boot action is Process Engineering Boot */
++#define BOOT_API_CTX_BOOT_ACTION_ENGI_BOOT			0x0CU
++
++#define BOOT_API_CTX_BOOT_ACTION_MPU_CORE0_RESET_PROCESS	0x0F
++
++/*
++ * Possible value of boot context field 'stby_exit_status'
++ */
++
++/* The boot reason is not a STANDBY Exit reason */
++#define BOOT_API_CTX_STBY_EXIT_STATUS_NO_STANDBY                0x00
++
++/* STANDBY Exit with MPU_BEN=1, MCU_BEN=0 */
++#define BOOT_API_CTX_STBY_EXIT_STATUS_WKUP_MPU_ONLY             0x01
++
++/*
++ * STANDBY Exit with MPU_BEN=1, MCU_BEN=1, MPU will go for cold boot
++ * MCU restarted by bootROM
++ */
++#define BOOT_API_CTX_STBY_EXIT_STATUS_WKUP_ALL_CORES            0x02
++
++/*
++ * STANDBY Exit with MPU_BEN=1, MCU_BEN=1, MPU will go for cold boot
++ * but MCU restart aborted (code integrity check) : have not been restarted
++ * by bootROM
++ */
++#define BOOT_API_CTX_STBY_EXIT_STATUS_WKUP_ALL_CORES_MCU_ABT    0x03
++
++/*
++ * STANDBY Exit with MPU_BEN=0, MCU_BEN=1, MPU gone to CSTANDBY,
++ * MCU restarted correctly by bootROM
++ * This value should never be read by FSBL, because not executed in that case
++ */
++#define BOOT_API_CTX_STBY_EXIT_STATUS_WKUP_MCU_ONLY             0x04
++
++/*
++ * STANDBY Exit with MPU_BEN=0, MCU_BEN=1, MCU restart aborted
++ * due code integrity check, then MPU will go for cold boot despite
++ * was not planned initially
++ */
++#define BOOT_API_CTX_STBY_EXIT_STATUS_WKUP_MCU_ONLY_MCU_ABT     0x05
++
++/*
++ * STANDBY Exit with MPU_BEN=1, MCU_BEN=1, MCU restart aborted
++ * due to MCU security perimeter issue
++ */
++#define \
++BOOT_API_CTX_STBY_EXIT_STATUS_WKUP_ALL_CORES_MCU_ABT_SEC_PERIMETER_ISSUE 0x06
++
++/*
++ * STANDBY Exit with MPU_BEN=0, MCU_BEN=1, MCU restart aborted
++ * due to MCU security perimeter issue, then MPU will go for cold boot
++ * despite was not planned initially
++ */
++#define \
++BOOT_API_CTX_STBY_EXIT_STATUS_WKUP_MCU_ONLY_MCU_ABT_SEC_PERIMETER_ISSUE	0x07
++
++/*
++ * Possible value of boot context field 'cstby_exit_status'
++ */
++/* The boot reason is not a CSTANDBY Exit reason */
++#define BOOT_API_CTX_CSTBY_EXIT_STATUS_NO_CSTBY			0x00
++/* CSTANDBY Exit with MCU detected as Not running */
++#define BOOT_API_CTX_CSTBY_EXIT_STATUS_MCU_NOT_RUNNING		0x01
++/* CSTANDBY Exit with MCU detected as Running  */
++#define BOOT_API_CTX_CSTBY_EXIT_STATUS_MCU_RUNNING		0x02
++
+ /*
+  * Possible value of boot context field 'auth_status'
+  */
+@@ -144,7 +228,26 @@ typedef struct {
+ 	uint16_t boot_interface_instance;
+ 	uint32_t reserved1[13];
+ 	uint32_t otp_afmux_values[3];
+-	uint32_t reserved[5];
++	uint32_t reserved[2];
++	/*
++	 * Log to boot context, what was the kind of boot action
++	 * takes values from defines BOOT_API_BOOT_ACTION_XXX above
++	 */
++	uint32_t boot_action;
++	/*
++	 * STANDBY Exit status to be checked by FSBL in case
++	 * field 'boot_action' == BOOT_API_CTX_BOOT_ACTION_WAKEUP_STANDBY
++	 * take values from defines above 'BOOT_API_CTX_STBY_EXIT_STATUS_XXX'
++	 * depending on encountered situation
++	 */
++	uint32_t stby_exit_status;
++	/*
++	 * CSTANDBY Exit status to be checked by FSBL in case
++	 * boot_action == BOOT_API_CTX_BOOT_ACTION_WAKEUP_CSTANDBY
++	 * take values from defines above 'BOOT_API_CTX_CSTBY_EXIT_STATUS_XXX'
++	 * depending on encountered situation
++	 */
++	uint32_t cstby_exit_status;
+ 	uint32_t auth_status;
+ 
+ 	/*
+diff --git a/plat/st/stm32mp1/include/platform_def.h b/plat/st/stm32mp1/include/platform_def.h
+index 263e6d6e1..2f6773e84 100644
+--- a/plat/st/stm32mp1/include/platform_def.h
++++ b/plat/st/stm32mp1/include/platform_def.h
+@@ -112,6 +112,8 @@
+  */
+ #define ARM_IRQ_SEC_PHY_TIMER		U(29)
+ 
++#define ARM_IRQ_NON_SEC_SGI_0		U(0)
++
+ #define ARM_IRQ_SEC_SGI_0		U(8)
+ #define ARM_IRQ_SEC_SGI_1		U(9)
+ #define ARM_IRQ_SEC_SGI_2		U(10)
+diff --git a/plat/st/stm32mp1/include/stm32mp1_context.h b/plat/st/stm32mp1/include/stm32mp1_context.h
+index 698415af2..081691788 100644
+--- a/plat/st/stm32mp1/include/stm32mp1_context.h
++++ b/plat/st/stm32mp1/include/stm32mp1_context.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2017-2018, ARM Limited and Contributors. All rights reserved.
++ * Copyright (c) 2017-2019, ARM Limited and Contributors. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+@@ -7,8 +7,19 @@
+ #ifndef STM32MP1_CONTEXT_H
+ #define STM32MP1_CONTEXT_H
+ 
++#include <stdbool.h>
+ #include <stdint.h>
+ 
++#define DDR_CRC_GRANULE		32
++
++void stm32_clean_context(void);
++int stm32_save_context(uint32_t zq0cr0_zdata);
++int stm32_restore_context(void);
++int stm32_restore_backup_reg(void);
++uint32_t stm32_get_zdata_from_context(void);
+ int stm32_save_boot_interface(uint32_t interface, uint32_t instance);
++void stm32_save_ddr_training_area(void);
++void stm32_restore_ddr_training_area(void);
++uint32_t stm32_pm_get_optee_ep(void);
+ 
+ #endif /* STM32MP1_CONTEXT_H */
+diff --git a/plat/st/stm32mp1/include/stm32mp1_low_power.h b/plat/st/stm32mp1/include/stm32mp1_low_power.h
+new file mode 100644
+index 000000000..82b3d36c1
+--- /dev/null
++++ b/plat/st/stm32mp1/include/stm32mp1_low_power.h
+@@ -0,0 +1,19 @@
++/*
++ * Copyright (c) 2017-2019, STMicroelectronics - All Rights Reserved
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef STM32MP1_LOW_POWER_H
++#define STM32MP1_LOW_POWER_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++void stm32_rcc_wakeup_update(bool state);
++void stm32_apply_pmic_suspend_config(uint32_t mode);
++void stm32_exit_cstop(void);
++void stm32_pwr_down_wfi(void);
++void stm32_enter_low_power(uint32_t mode, uint32_t nsec_addr);
++
++#endif /* STM32MP1_LOW_POWER_H */
+diff --git a/plat/st/stm32mp1/include/stm32mp1_power_config.h b/plat/st/stm32mp1/include/stm32mp1_power_config.h
+new file mode 100644
+index 000000000..7c7571a5a
+--- /dev/null
++++ b/plat/st/stm32mp1/include/stm32mp1_power_config.h
+@@ -0,0 +1,19 @@
++/*
++ * Copyright (c) 2017-2019, STMicroelectronics - All Rights Reserved
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef STM32MP1_POWER_CONFIG_H
++#define STM32MP1_POWER_CONFIG_H
++
++#include <stdbool.h>
++#include <stdint.h>
++
++#define PSCI_MODE_SYSTEM_SUSPEND	0
++#define PSCI_MODE_SYSTEM_OFF		1
++
++void stm32mp1_init_lp_states(void);
++uint32_t stm32mp1_get_lp_soc_mode(uint32_t psci_mode);
++
++#endif /* STM32MP1_POWER_CONFIG_H */
+diff --git a/plat/st/stm32mp1/include/stm32mp1_private.h b/plat/st/stm32mp1/include/stm32mp1_private.h
+index e38fca012..7adc7f6f1 100644
+--- a/plat/st/stm32mp1/include/stm32mp1_private.h
++++ b/plat/st/stm32mp1/include/stm32mp1_private.h
+@@ -11,6 +11,9 @@
+ 
+ void configure_mmu(void);
+ 
++void stm32mp_mask_timer(void);
++void __dead2 stm32mp_wait_cpu_reset(void);
++
+ void stm32mp1_arch_security_setup(void);
+ void stm32mp1_security_setup(void);
+ 
+diff --git a/plat/st/stm32mp1/plat_image_load.c b/plat/st/stm32mp1/plat_image_load.c
+index a52db6cac..1fb3ec510 100644
+--- a/plat/st/stm32mp1/plat_image_load.c
++++ b/plat/st/stm32mp1/plat_image_load.c
+@@ -1,10 +1,14 @@
+ /*
+- * Copyright (c) 2016-2018, ARM Limited and Contributors. All rights reserved.
++ * Copyright (c) 2016-2019, ARM Limited and Contributors. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+ 
++#include <platform_def.h>
++
++#include <common/bl_common.h>
+ #include <common/desc_image_load.h>
++#include <lib/mmio.h>
+ #include <plat/common/platform.h>
+ 
+ /*******************************************************************************
+@@ -16,11 +20,68 @@ void plat_flush_next_bl_params(void)
+ 	flush_bl_params_desc();
+ }
+ 
++#ifdef AARCH32_SP_OPTEE
++static bool addr_inside_backupsram(uintptr_t addr)
++{
++	return (addr >= STM32MP_BACKUP_RAM_BASE) &&
++		(addr < (STM32MP_BACKUP_RAM_BASE + STM32MP_BACKUP_RAM_SIZE));
++}
++#endif
++
+ /*******************************************************************************
+  * This function returns the list of loadable images.
+  ******************************************************************************/
+ bl_load_info_t *plat_get_bl_image_load_info(void)
+ {
++	boot_api_context_t *boot_context =
++		(boot_api_context_t *)stm32mp_get_boot_ctx_address();
++#ifdef AARCH32_SP_OPTEE
++	bl_mem_params_node_t *bl32 = get_bl_mem_params_node(BL32_IMAGE_ID);
++#endif
++	bl_mem_params_node_t *bl33 = get_bl_mem_params_node(BL33_IMAGE_ID);
++	uint32_t rstsr = mmio_read_32(stm32mp_rcc_base() + RCC_MP_RSTSCLRR);
++	uint32_t bkpr_core1_addr =
++		tamp_bkpr(BOOT_API_CORE1_BRANCH_ADDRESS_TAMP_BCK_REG_IDX);
++	uintptr_t pwr_base = stm32mp_pwr_base();
++
++	/*
++	 * If going back from CSTANDBY / STANDBY and DDR was in Self-Refresh,
++	 * BL33 must not be loaded as it would overwrite the code already
++	 * in DDR. For this, the BL33 part of the bl_mem_params_desc_ptr
++	 * struct should be modified to skip its loading
++	 */
++	if (((boot_context->boot_action ==
++	      BOOT_API_CTX_BOOT_ACTION_WAKEUP_CSTANDBY) ||
++	     (boot_context->boot_action ==
++	      BOOT_API_CTX_BOOT_ACTION_WAKEUP_STANDBY)) &&
++	    ((mmio_read_32(pwr_base + PWR_CR3) & PWR_CR3_DDRSREN) != 0U) &&
++	    ((rstsr & RCC_MP_RSTSCLRR_PADRSTF) == 0U)) {
++		stm32mp_clk_enable(RTCAPB);
++
++		if (mmio_read_32(bkpr_core1_addr) != 0U) {
++			bl33->image_info.h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
++
++#ifdef AARCH32_SP_OPTEE
++			bl32->image_info.h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
++			bl32->ep_info.pc = stm32_pm_get_optee_ep();
++
++			if (addr_inside_backupsram(bl32->ep_info.pc)) {
++				stm32mp_clk_enable(BKPSRAM);
++			}
++#else
++			/*
++			 * Set ep_info PC to 0, to inform BL32 it is a reset
++			 * after STANDBY
++			 */
++			bl33->ep_info.pc = 0;
++#endif
++		}
++
++		stm32mp_clk_disable(RTCAPB);
++	}
++
++	bl33->image_info.image_max_size = dt_get_ddr_size();
++
+ 	return get_bl_load_info_from_mem_params_desc();
+ }
+ 
+diff --git a/plat/st/stm32mp1/platform.mk b/plat/st/stm32mp1/platform.mk
+index 90b3e3c1e..0c57c85af 100644
+--- a/plat/st/stm32mp1/platform.mk
++++ b/plat/st/stm32mp1/platform.mk
+@@ -94,6 +94,10 @@ ifeq ($(AARCH32_SP),optee)
+ BL2_SOURCES		+=	lib/optee/optee_utils.c
+ endif
+ 
++
++# Do not use neon in TF-A code, it leads to issues in low-power functions
++TF_CFLAGS		+=	-mfloat-abi=soft
++
+ # Macros and rules to build TF binary
+ STM32_TF_ELF_LDFLAGS	:=	--hash-style=gnu --as-needed
+ STM32_DT_BASENAME	:=	$(DTB_FILE_NAME:.dtb=)
+diff --git a/plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk b/plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk
+index 6c7107ca2..34530f181 100644
+--- a/plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk
++++ b/plat/st/stm32mp1/sp_min/sp_min-stm32mp1.mk
+@@ -6,10 +6,14 @@
+ 
+ SP_MIN_WITH_SECURE_FIQ	:=	1
+ 
++BL32_CFLAGS		+=	-DPLAT_XLAT_TABLES_DYNAMIC=1
++
+ BL32_SOURCES		+=	plat/common/aarch32/platform_mp_stack.S		\
+ 				drivers/st/rtc/stm32_rtc.c			\
+ 				plat/st/stm32mp1/sp_min/sp_min_setup.c		\
++				plat/st/stm32mp1/stm32mp1_low_power.c		\
+ 				plat/st/stm32mp1/stm32mp1_pm.c			\
++				plat/st/stm32mp1/stm32mp1_power_config.c	\
+ 				plat/st/stm32mp1/stm32mp1_topology.c
+ # Generic GIC v2
+ BL32_SOURCES		+=	drivers/arm/gic/common/gic_common.c	\
+diff --git a/plat/st/stm32mp1/sp_min/sp_min_setup.c b/plat/st/stm32mp1/sp_min/sp_min_setup.c
+index ff69358e0..62b358cb3 100644
+--- a/plat/st/stm32mp1/sp_min/sp_min_setup.c
++++ b/plat/st/stm32mp1/sp_min/sp_min_setup.c
+@@ -21,6 +21,7 @@
+ #include <drivers/st/stm32_gpio.h>
+ #include <drivers/st/stm32_iwdg.h>
+ #include <drivers/st/stm32_rtc.h>
++#include <drivers/st/stm32mp_pmic.h>
+ #include <drivers/st/stm32mp1_clk.h>
+ #include <dt-bindings/clock/stm32mp1-clks.h>
+ #include <lib/el3_runtime/context_mgmt.h>
+@@ -29,6 +30,7 @@
+ #include <plat/common/platform.h>
+ 
+ #include <platform_sp_min.h>
++#include <stm32mp1_power_config.h>
+ 
+ /******************************************************************************
+  * Placeholder variables for copying the arguments that have been passed to
+@@ -38,6 +40,27 @@ static entry_point_info_t bl33_image_ep_info;
+ 
+ static struct console_stm32 console;
+ 
++static void stm32_sgi1_it_handler(void)
++{
++	uint32_t id;
++
++	stm32mp_mask_timer();
++
++	gicv2_end_of_interrupt(ARM_IRQ_SEC_SGI_1);
++
++	do {
++		id = plat_ic_get_pending_interrupt_id();
++
++		if (id <= MAX_SPI_ID) {
++			gicv2_end_of_interrupt(id);
++
++			plat_ic_disable_interrupt(id);
++		}
++	} while (id <= MAX_SPI_ID);
++
++	stm32mp_wait_cpu_reset();
++}
++
+ /*******************************************************************************
+  * Interrupt handler for FIQ (secure IRQ)
+  ******************************************************************************/
+@@ -48,12 +71,15 @@ void sp_min_plat_fiq_handler(uint32_t id)
+ 		ERROR("STM32MP1_IRQ_TZC400 generated\n");
+ 		panic();
+ 		break;
++	case ARM_IRQ_SEC_SGI_1:
++		stm32_sgi1_it_handler();
++		break;
+ 	case STM32MP1_IRQ_AXIERRIRQ:
+ 		ERROR("STM32MP1_IRQ_AXIERRIRQ generated\n");
+ 		panic();
+ 		break;
+ 	default:
+-		ERROR("SECURE IT handler not define for it : %u", id);
++		ERROR("SECURE IT handler not define for it : %u\n", id);
+ 		break;
+ 	}
+ }
+@@ -67,11 +93,54 @@ void sp_min_plat_fiq_handler(uint32_t id)
+ entry_point_info_t *sp_min_plat_get_bl33_ep_info(void)
+ {
+ 	entry_point_info_t *next_image_info;
++	uint32_t bkpr_core1_addr =
++		tamp_bkpr(BOOT_API_CORE1_BRANCH_ADDRESS_TAMP_BCK_REG_IDX);
++	uint32_t bkpr_core1_magic =
++		tamp_bkpr(BOOT_API_CORE1_MAGIC_NUMBER_TAMP_BCK_REG_IDX);
+ 
+ 	next_image_info = &bl33_image_ep_info;
+ 
++	/*
++	 * PC is set to 0 when resetting after STANDBY
++	 * The context should be restored, and the image information
++	 * should be filled with what what was saved
++	 */
+ 	if (next_image_info->pc == 0U) {
+-		return NULL;
++		void *cpu_context;
++		uint32_t magic_nb, saved_pc;
++
++		stm32mp_clk_enable(RTCAPB);
++
++		magic_nb = mmio_read_32(bkpr_core1_magic);
++		saved_pc = mmio_read_32(bkpr_core1_addr);
++
++		stm32mp_clk_disable(RTCAPB);
++
++		if (stm32_restore_context() != 0) {
++			panic();
++		}
++
++		cpu_context = cm_get_context(NON_SECURE);
++
++		next_image_info->spsr = read_ctx_reg(get_regs_ctx(cpu_context),
++						     CTX_SPSR);
++
++		/* PC should be retrieved in backup register if OK, else it can
++		 * be retrieved from non-secure context
++		 */
++		if (magic_nb == BOOT_API_A7_CORE0_MAGIC_NUMBER) {
++			/* BL33 return address should be in DDR */
++			if ((saved_pc < STM32MP_DDR_BASE) ||
++			    (saved_pc > (STM32MP_DDR_BASE +
++					 (dt_get_ddr_size() - 1U)))) {
++				panic();
++			}
++
++			next_image_info->pc = saved_pc;
++		} else {
++			next_image_info->pc =
++				read_ctx_reg(get_regs_ctx(cpu_context), CTX_LR);
++		}
+ 	}
+ 
+ 	return next_image_info;
+@@ -145,6 +214,12 @@ void sp_min_early_platform_setup2(u_register_t arg0, u_register_t arg1,
+ #endif
+ 		console_set_scope(&console.console, console_flags);
+ 	}
++
++	if (dt_pmic_status() > 0) {
++		initialize_pmic();
++	}
++
++	stm32mp1_init_lp_states();
+ }
+ 
+ /*******************************************************************************
+diff --git a/plat/st/stm32mp1/stm32mp1_context.c b/plat/st/stm32mp1/stm32mp1_context.c
+index cf8a91eb4..ed54fc625 100644
+--- a/plat/st/stm32mp1/stm32mp1_context.c
++++ b/plat/st/stm32mp1/stm32mp1_context.c
+@@ -5,19 +5,171 @@
+  */
+ 
+ #include <errno.h>
++#include <string.h>
+ 
+ #include <platform_def.h>
+ 
++#include <arch_helpers.h>
++#include <context.h>
++#include <drivers/st/stm32_rtc.h>
+ #include <drivers/st/stm32mp1_clk.h>
++#include <drivers/st/stm32mp1_ddr_regs.h>
+ #include <dt-bindings/clock/stm32mp1-clks.h>
++#include <lib/el3_runtime/context_mgmt.h>
+ #include <lib/mmio.h>
++#include <lib/utils.h>
++#include <lib/xlat_tables/xlat_tables_v2.h>
++#include <smccc_helpers.h>
+ 
+ #include <stm32mp1_context.h>
+ 
++#include <boot_api.h>
++
+ #define TAMP_BOOT_ITF_BACKUP_REG_ID	U(20)
+ #define TAMP_BOOT_ITF_MASK		U(0x0000FF00)
+ #define TAMP_BOOT_ITF_SHIFT		8
+ 
++#define TRAINING_AREA_SIZE		64
++
++#ifdef AARCH32_SP_OPTEE
++/* OPTEE_MAILBOX_MAGIC relates to struct backup_data_s as defined */
++#define OPTEE_MAILBOX_MAGIC_V1		0x01
++#define OPTEE_MAILBOX_MAGIC		((OPTEE_MAILBOX_MAGIC_V1 << 16) + \
++						TRAINING_AREA_SIZE)
++#endif
++
++struct backup_data_s {
++#ifdef AARCH32_SP_OPTEE
++	uint32_t magic;
++	uint32_t core0_resume_hint;
++	uint32_t zq0cr0_zdata;
++	uint8_t ddr_training_backup[TRAINING_AREA_SIZE];
++#else
++	smc_ctx_t saved_smc_context[PLATFORM_CORE_COUNT];
++	cpu_context_t saved_cpu_context[PLATFORM_CORE_COUNT];
++	uint32_t zq0cr0_zdata;
++	struct stm32_rtc_calendar rtc;
++	uint8_t ddr_training_backup[TRAINING_AREA_SIZE];
++#endif
++};
++
++#ifdef AARCH32_SP_OPTEE
++uint32_t stm32_pm_get_optee_ep(void)
++{
++	struct backup_data_s *backup_data;
++	uint32_t ep;
++
++	stm32mp_clk_enable(BKPSRAM);
++
++	/* Context & Data to be saved at the beginning of Backup SRAM */
++	backup_data = (struct backup_data_s *)STM32MP_BACKUP_RAM_BASE;
++
++	if (backup_data->magic != OPTEE_MAILBOX_MAGIC) {
++		panic();
++	}
++
++	ep = backup_data->core0_resume_hint;
++
++	stm32mp_clk_disable(BKPSRAM);
++
++	return ep;
++}
++#else /*AARCH32_SP_OPTEE*/
++void stm32_clean_context(void)
++{
++	stm32mp_clk_enable(BKPSRAM);
++
++	zeromem((void *)STM32MP_BACKUP_RAM_BASE, sizeof(struct backup_data_s));
++
++	stm32mp_clk_disable(BKPSRAM);
++}
++
++int stm32_save_context(uint32_t zq0cr0_zdata)
++{
++	void *smc_context;
++	void *cpu_context;
++	struct backup_data_s *backup_data;
++
++	stm32mp_clk_enable(BKPSRAM);
++
++	/* Context & Data to be saved at the beginning of Backup SRAM */
++	backup_data = (struct backup_data_s *)STM32MP_BACKUP_RAM_BASE;
++
++	/* Retrieve smc context struct address */
++	smc_context = smc_get_ctx(NON_SECURE);
++
++	/* Retrieve smc context struct address */
++	cpu_context = cm_get_context(NON_SECURE);
++
++	/* Save context in Backup SRAM */
++	memcpy(&backup_data->saved_smc_context[0], smc_context,
++	       sizeof(smc_ctx_t) * PLATFORM_CORE_COUNT);
++	memcpy(&backup_data->saved_cpu_context[0], cpu_context,
++	       sizeof(cpu_context_t) * PLATFORM_CORE_COUNT);
++
++	backup_data->zq0cr0_zdata = zq0cr0_zdata;
++
++	stm32_rtc_get_calendar(&backup_data->rtc);
++
++	stm32mp_clk_disable(BKPSRAM);
++
++	return 0;
++}
++
++int stm32_restore_context(void)
++{
++	void *smc_context;
++	void *cpu_context;
++	struct backup_data_s *backup_data;
++	struct stm32_rtc_calendar current_calendar;
++	unsigned long long stdby_time_in_ms;
++
++	stm32mp_clk_enable(BKPSRAM);
++
++	/* Context & Data to be saved at the beginning of Backup SRAM */
++	backup_data = (struct backup_data_s *)STM32MP_BACKUP_RAM_BASE;
++
++	/* Retrieve smc context struct address */
++	smc_context = smc_get_ctx(NON_SECURE);
++
++	/* Retrieve smc context struct address */
++	cpu_context = cm_get_context(NON_SECURE);
++
++	/* Restore data from Backup SRAM */
++	memcpy(smc_context, backup_data->saved_smc_context,
++	       sizeof(smc_ctx_t) * PLATFORM_CORE_COUNT);
++	memcpy(cpu_context, backup_data->saved_cpu_context,
++	       sizeof(cpu_context_t) * PLATFORM_CORE_COUNT);
++
++	/* update STGEN counter with standby mode length */
++	stm32_rtc_get_calendar(&current_calendar);
++	stdby_time_in_ms = stm32_rtc_diff_calendar(&current_calendar,
++						   &backup_data->rtc);
++	stm32mp1_stgen_increment(stdby_time_in_ms);
++
++	stm32mp_clk_disable(BKPSRAM);
++
++	return 0;
++}
++#endif /*AARCH32_SP_OPTEE*/
++
++uint32_t stm32_get_zdata_from_context(void)
++{
++	struct backup_data_s *backup_data;
++	uint32_t zdata;
++
++	stm32mp_clk_enable(BKPSRAM);
++
++	backup_data = (struct backup_data_s *)STM32MP_BACKUP_RAM_BASE;
++
++	zdata = (backup_data->zq0cr0_zdata >> DDRPHYC_ZQ0CRN_ZDATA_SHIFT) &
++		DDRPHYC_ZQ0CRN_ZDATA_MASK;
++
++	stm32mp_clk_disable(BKPSRAM);
++
++	return zdata;
++}
++
+ int stm32_save_boot_interface(uint32_t interface, uint32_t instance)
+ {
+ 	uint32_t bkpr_itf_idx = tamp_bkpr(TAMP_BOOT_ITF_BACKUP_REG_ID);
+@@ -33,3 +185,50 @@ int stm32_save_boot_interface(uint32_t interface, uint32_t instance)
+ 
+ 	return 0;
+ }
++
++#if defined(IMAGE_BL32)
++/*
++ * When returning from STANDBY, the 64 first bytes of DDR will be overwritten
++ * during DDR DQS training. This area must then be saved before going to
++ * standby, and will be restored after
++ */
++void stm32_save_ddr_training_area(void)
++{
++	struct backup_data_s *backup_data;
++	int ret __unused;
++
++	stm32mp_clk_enable(BKPSRAM);
++
++	backup_data = (struct backup_data_s *)STM32MP_BACKUP_RAM_BASE;
++
++	ret = mmap_add_dynamic_region(STM32MP_DDR_BASE, STM32MP_DDR_BASE,
++				      PAGE_SIZE, MT_MEMORY | MT_RW | MT_NS);
++	assert(ret == 0);
++
++	memcpy(&backup_data->ddr_training_backup,
++	       (const uint32_t *)STM32MP_DDR_BASE,
++	       TRAINING_AREA_SIZE);
++	dsb();
++
++	ret = mmap_remove_dynamic_region(STM32MP_DDR_BASE, PAGE_SIZE);
++	assert(ret == 0);
++
++	stm32mp_clk_disable(BKPSRAM);
++}
++#endif
++
++void stm32_restore_ddr_training_area(void)
++{
++	struct backup_data_s *backup_data;
++
++	stm32mp_clk_enable(BKPSRAM);
++
++	backup_data = (struct backup_data_s *)STM32MP_BACKUP_RAM_BASE;
++
++	memcpy((uint32_t *)STM32MP_DDR_BASE,
++	       &backup_data->ddr_training_backup,
++	       TRAINING_AREA_SIZE);
++	dsb();
++
++	stm32mp_clk_disable(BKPSRAM);
++}
+diff --git a/plat/st/stm32mp1/stm32mp1_def.h b/plat/st/stm32mp1/stm32mp1_def.h
+index dbe62f09d..26a194acb 100644
+--- a/plat/st/stm32mp1/stm32mp1_def.h
++++ b/plat/st/stm32mp1/stm32mp1_def.h
+@@ -25,6 +25,7 @@
+ #include <stm32mp_common.h>
+ #include <stm32mp_dt.h>
+ #include <stm32mp_shres_helpers.h>
++#include <stm32mp1_context.h>
+ #include <stm32mp1_dbgmcu.h>
+ #include <stm32mp1_private.h>
+ #endif
+@@ -58,6 +59,9 @@
+ #define STM32MP_SYSRAM_BASE		U(0x2FFC0000)
+ #define STM32MP_SYSRAM_SIZE		U(0x00040000)
+ 
++#define STM32MP_BACKUP_RAM_BASE		U(0x54000000)
++#define STM32MP_BACKUP_RAM_SIZE		U(0x00001000)
++
+ /* DDR configuration */
+ #define STM32MP_DDR_BASE		U(0xC0000000)
+ #define STM32MP_DDR_MAX_SIZE		U(0x40000000)	/* Max 1GB */
+diff --git a/plat/st/stm32mp1/stm32mp1_low_power.c b/plat/st/stm32mp1/stm32mp1_low_power.c
+new file mode 100644
+index 000000000..36664c21c
+--- /dev/null
++++ b/plat/st/stm32mp1/stm32mp1_low_power.c
+@@ -0,0 +1,327 @@
++/*
++ * Copyright (c) 2017-2019, STMicroelectronics - All Rights Reserved
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++
++#include <libfdt.h>
++
++#include <arch_helpers.h>
++#include <common/debug.h>
++#include <drivers/arm/gic_common.h>
++#include <drivers/arm/gicv2.h>
++#include <drivers/delay_timer.h>
++#include <drivers/st/stm32_iwdg.h>
++#include <drivers/st/stm32_rtc.h>
++#include <drivers/st/stm32mp_pmic.h>
++#include <drivers/st/stm32mp1_clk.h>
++#include <drivers/st/stm32mp1_ddr_helpers.h>
++#include <drivers/st/stm32mp1_pwr.h>
++#include <drivers/st/stm32mp1_rcc.h>
++#include <drivers/st/stpmic1.h>
++#include <dt-bindings/clock/stm32mp1-clks.h>
++#include <dt-bindings/power/stm32mp1-power.h>
++#include <lib/mmio.h>
++#include <plat/common/platform.h>
++
++#include <boot_api.h>
++#include <stm32mp_common.h>
++#include <stm32mp_dt.h>
++#include <stm32mp1_context.h>
++#include <stm32mp1_low_power.h>
++#include <stm32mp1_private.h>
++
++static unsigned int gicc_pmr;
++static struct stm32_rtc_calendar sleep_time, current_calendar;
++static unsigned long long stdby_time_in_ms;
++static bool enter_cstop_done;
++
++struct pwr_lp_config {
++	uint32_t pwr_cr1;
++	uint32_t pwr_mpucr;
++	const char *regul_suspend_node_name;
++};
++
++#define PWR_CR1_MASK	(PWR_CR1_LPDS | PWR_CR1_LPCFG | PWR_CR1_LVDS)
++#define PWR_MPUCR_MASK	(PWR_MPUCR_CSTDBYDIS | PWR_MPUCR_CSSF | PWR_MPUCR_PDDS)
++
++static const struct pwr_lp_config config_pwr[STM32_PM_MAX_SOC_MODE] = {
++	[STM32_PM_CSLEEP_RUN] = {
++		.pwr_cr1 = 0U,
++		.pwr_mpucr = PWR_MPUCR_CSSF,
++		.regul_suspend_node_name = NULL,
++	},
++	[STM32_PM_CSTOP_ALLOW_STOP] = {
++		.pwr_cr1 = 0U,
++		.pwr_mpucr = PWR_MPUCR_CSTDBYDIS | PWR_MPUCR_CSSF,
++		.regul_suspend_node_name = NULL,
++	},
++	[STM32_PM_CSTOP_ALLOW_LP_STOP] = {
++		.pwr_cr1 = PWR_CR1_LPDS,
++		.pwr_mpucr = PWR_MPUCR_CSTDBYDIS | PWR_MPUCR_CSSF,
++		.regul_suspend_node_name = "lp-stop",
++	},
++	[STM32_PM_CSTOP_ALLOW_LPLV_STOP] = {
++		.pwr_cr1 = PWR_CR1_LVDS | PWR_CR1_LPDS | PWR_CR1_LPCFG,
++		.pwr_mpucr = PWR_MPUCR_CSTDBYDIS | PWR_MPUCR_CSSF,
++		.regul_suspend_node_name = "lplv-stop",
++	},
++	[STM32_PM_CSTOP_ALLOW_STANDBY_DDR_SR] = {
++		.pwr_cr1 = 0U,
++		.pwr_mpucr = PWR_MPUCR_CSTDBYDIS | PWR_MPUCR_CSSF |
++			PWR_MPUCR_PDDS,
++		.regul_suspend_node_name = "standby-ddr-sr",
++	},
++	[STM32_PM_CSTOP_ALLOW_STANDBY_DDR_OFF] = {
++		.pwr_cr1 = 0U,
++		.pwr_mpucr = PWR_MPUCR_CSTDBYDIS | PWR_MPUCR_CSSF |
++			PWR_MPUCR_PDDS,
++		.regul_suspend_node_name = "standby-ddr-off",
++	},
++	[STM32_PM_SHUTDOWN] = {
++		.pwr_cr1 = 0U,
++		.pwr_mpucr = 0U,
++		.regul_suspend_node_name = "standby-ddr-off",
++	},
++};
++
++#define GICC_PMR_PRIORITY_8	U(0x8)
++
++void stm32_apply_pmic_suspend_config(uint32_t mode)
++{
++	const char *node_name = config_pwr[mode].regul_suspend_node_name;
++
++	assert(mode < ARRAY_SIZE(config_pwr));
++
++	if (node_name != NULL) {
++		if (!initialize_pmic_i2c()) {
++			panic();
++		}
++
++		if (dt_pmic_set_lp_config(node_name) != 0) {
++			panic();
++		}
++
++		if (dt_pmic_configure_boot_on_regulators() != 0) {
++			panic();
++		}
++	}
++}
++
++/*
++ * stm32_enter_cstop - Prepare CSTOP mode
++ *
++ * @mode - Target low power mode
++ * @nsec_addr - Non secure resume entry point
++ * Return 0 if succeed to suspend, non 0 else.
++ */
++static void enter_cstop(uint32_t mode, uint32_t nsec_addr)
++{
++	uint32_t zq0cr0_zdata;
++	uint32_t bkpr_core1_addr =
++		tamp_bkpr(BOOT_API_CORE1_BRANCH_ADDRESS_TAMP_BCK_REG_IDX);
++	uint32_t bkpr_core1_magic =
++		tamp_bkpr(BOOT_API_CORE1_MAGIC_NUMBER_TAMP_BCK_REG_IDX);
++	uint32_t pwr_cr1 = config_pwr[mode].pwr_cr1;
++	uintptr_t pwr_base = stm32mp_pwr_base();
++	uintptr_t rcc_base = stm32mp_rcc_base();
++
++	stm32mp1_syscfg_disable_io_compensation();
++
++	dcsw_op_all(DC_OP_CISW);
++
++	stm32_clean_context();
++
++	if (mode == STM32_PM_CSTOP_ALLOW_STANDBY_DDR_SR) {
++		/*
++		 * The first 64 bytes of DDR need to be saved for DDR DQS
++		 * training
++		 */
++		stm32_save_ddr_training_area();
++	}
++
++	if (dt_pmic_status() > 0) {
++		stm32_apply_pmic_suspend_config(mode);
++
++		if (mode == STM32_PM_CSTOP_ALLOW_LP_STOP) {
++			pwr_cr1 |= PWR_CR1_LPCFG;
++		}
++	}
++
++	/* Clear RCC interrupt before enabling it */
++	mmio_setbits_32(rcc_base + RCC_MP_CIFR, RCC_MP_CIFR_WKUPF);
++
++	/* Enable RCC Wake-up */
++	mmio_setbits_32(rcc_base + RCC_MP_CIER, RCC_MP_CIFR_WKUPF);
++
++	/* Configure low power mode */
++	mmio_clrsetbits_32(pwr_base + PWR_MPUCR, PWR_MPUCR_MASK,
++			   config_pwr[mode].pwr_mpucr);
++	mmio_clrsetbits_32(pwr_base + PWR_CR1, PWR_CR1_MASK,
++			   pwr_cr1);
++
++	/* Clear RCC pending interrupt flags */
++	mmio_write_32(rcc_base + RCC_MP_CIFR, RCC_MP_CIFR_MASK);
++
++	/* Request CSTOP mode to RCC */
++	mmio_setbits_32(rcc_base + RCC_MP_SREQSETR,
++			RCC_MP_SREQSETR_STPREQ_P0 | RCC_MP_SREQSETR_STPREQ_P1);
++
++	stm32_iwdg_refresh();
++
++	gicc_pmr = plat_ic_set_priority_mask(GICC_PMR_PRIORITY_8);
++
++	/*
++	 * Set DDR in Self-refresh, even if no return address is given.
++	 * This is also the procedure awaited when switching off power supply.
++	 */
++	if (ddr_standby_sr_entry(&zq0cr0_zdata) != 0) {
++		return;
++	}
++
++	stm32mp_clk_enable(RTCAPB);
++
++	mmio_write_32(bkpr_core1_addr, 0);
++	mmio_write_32(bkpr_core1_magic, 0);
++
++	if (mode == STM32_PM_CSTOP_ALLOW_STANDBY_DDR_SR) {
++		/*
++		 * Save non-secure world entrypoint after standby in Backup
++		 * register
++		 */
++		mmio_write_32(bkpr_core1_addr, nsec_addr);
++		mmio_write_32(bkpr_core1_magic,
++			      BOOT_API_A7_CORE0_MAGIC_NUMBER);
++
++		if (stm32_save_context(zq0cr0_zdata) != 0) {
++			panic();
++		}
++
++		/* Keep retention and backup RAM content in standby */
++		mmio_setbits_32(pwr_base + PWR_CR2, PWR_CR2_BREN |
++				PWR_CR2_RREN);
++		while ((mmio_read_32(pwr_base + PWR_CR2) &
++			(PWR_CR2_BRRDY | PWR_CR2_RRRDY)) == 0U) {
++			;
++		}
++	}
++
++	stm32mp_clk_disable(RTCAPB);
++
++	stm32_rtc_get_calendar(&sleep_time);
++
++	enter_cstop_done = true;
++}
++
++/*
++ * stm32_exit_cstop - Exit from CSTOP mode
++ */
++void stm32_exit_cstop(void)
++{
++	uintptr_t pwr_base = stm32mp_pwr_base();
++	uintptr_t rcc_base = stm32mp_rcc_base();
++
++	if (!enter_cstop_done) {
++		return;
++	}
++
++	enter_cstop_done = false;
++
++	if (ddr_sw_self_refresh_exit() != 0) {
++		panic();
++	}
++
++	plat_ic_set_priority_mask(gicc_pmr);
++
++	/* Disable RCC Wake-up */
++	mmio_clrbits_32(rcc_base + RCC_MP_CIER, RCC_MP_CIFR_WKUPF);
++
++	/* Disable STOP request */
++	mmio_setbits_32(rcc_base + RCC_MP_SREQCLRR,
++			RCC_MP_SREQSETR_STPREQ_P0 | RCC_MP_SREQSETR_STPREQ_P1);
++
++	dsb();
++	isb();
++
++	/* Disable retention and backup RAM content after stop */
++	mmio_clrbits_32(pwr_base + PWR_CR2, PWR_CR2_BREN | PWR_CR2_RREN);
++
++	/* Update STGEN counter with low power mode duration */
++	stm32_rtc_get_calendar(&current_calendar);
++
++	stdby_time_in_ms = stm32_rtc_diff_calendar(&current_calendar,
++						   &sleep_time);
++
++	stm32mp1_stgen_increment(stdby_time_in_ms);
++
++	stm32mp1_syscfg_enable_io_compensation();
++}
++
++static void enter_shutdown(void)
++{
++	/* Set DDR in Self-refresh before shutting down the platform */
++	if (ddr_standby_sr_entry(NULL) != 0) {
++		WARN("DDR can't be set in Self-refresh mode\n");
++	}
++
++	if (dt_pmic_status() > 0) {
++		if (!initialize_pmic_i2c()) {
++			panic();
++		}
++
++		stpmic1_switch_off();
++
++		udelay(100);
++
++		/* Shouldn't be reached */
++		panic();
++	}
++}
++
++static void enter_csleep(void)
++{
++	uintptr_t pwr_base = stm32mp_pwr_base();
++
++	mmio_clrsetbits_32(pwr_base + PWR_MPUCR, PWR_MPUCR_MASK,
++			   config_pwr[STM32_PM_CSLEEP_RUN].pwr_mpucr);
++	mmio_clrsetbits_32(pwr_base + PWR_CR1, PWR_CR1_MASK,
++			   config_pwr[STM32_PM_CSLEEP_RUN].pwr_cr1);
++
++	stm32_pwr_down_wfi();
++}
++
++void stm32_enter_low_power(uint32_t mode, uint32_t nsec_addr)
++{
++	switch (mode) {
++	case STM32_PM_SHUTDOWN:
++		enter_shutdown();
++		break;
++
++	case STM32_PM_CSLEEP_RUN:
++		enter_csleep();
++		break;
++
++	default:
++		enter_cstop(mode, nsec_addr);
++		break;
++	}
++}
++
++void stm32_pwr_down_wfi(void)
++{
++	uint32_t interrupt = GIC_SPURIOUS_INTERRUPT;
++
++	while (interrupt == GIC_SPURIOUS_INTERRUPT) {
++		wfi();
++
++		interrupt = gicv2_acknowledge_interrupt();
++
++		if (interrupt != GIC_SPURIOUS_INTERRUPT) {
++			gicv2_end_of_interrupt(interrupt);
++		}
++
++		stm32_iwdg_refresh();
++	}
++}
+diff --git a/plat/st/stm32mp1/stm32mp1_pm.c b/plat/st/stm32mp1/stm32mp1_pm.c
+index cf9fa8e69..9ebea40f1 100644
+--- a/plat/st/stm32mp1/stm32mp1_pm.c
++++ b/plat/st/stm32mp1/stm32mp1_pm.c
+@@ -13,14 +13,20 @@
+ #include <common/debug.h>
+ #include <drivers/arm/gic_common.h>
+ #include <drivers/arm/gicv2.h>
++#include <drivers/delay_timer.h>
+ #include <drivers/st/stm32mp1_clk.h>
++#include <drivers/st/stm32mp1_rcc.h>
+ #include <dt-bindings/clock/stm32mp1-clks.h>
+ #include <lib/mmio.h>
+ #include <lib/psci/psci.h>
+ #include <plat/common/platform.h>
+ 
++#include <stm32mp1_low_power.h>
++#include <stm32mp1_power_config.h>
++
+ static uintptr_t stm32_sec_entrypoint;
+ static uint32_t cntfrq_core0;
++static uintptr_t saved_entrypoint;
+ 
+ /*******************************************************************************
+  * STM32MP1 handler called when a CPU is about to enter standby.
+@@ -33,11 +39,12 @@ static void stm32_cpu_standby(plat_local_state_t cpu_state)
+ 	assert(cpu_state == ARM_LOCAL_STATE_RET);
+ 
+ 	/*
+-	 * Enter standby state
+-	 * dsb is good practice before using wfi to enter low power states
++	 * Enter standby state.
++	 * Synchronize on memory accesses and instruction flow before the WFI
++	 * instruction.
+ 	 */
+-	isb();
+ 	dsb();
++	isb();
+ 	while (interrupt == GIC_SPURIOUS_INTERRUPT) {
+ 		wfi();
+ 
+@@ -64,10 +71,23 @@ static int stm32_pwr_domain_on(u_register_t mpidr)
+ 	uint32_t bkpr_core1_magic =
+ 		tamp_bkpr(BOOT_API_CORE1_MAGIC_NUMBER_TAMP_BCK_REG_IDX);
+ 
++	if (stm32mp_is_single_core()) {
++		return PSCI_E_INTERN_FAIL;
++	}
++
+ 	if (mpidr == current_cpu_mpidr) {
+ 		return PSCI_E_INVALID_PARAMS;
+ 	}
+ 
++	/* Reset backup register content */
++	mmio_write_32(bkpr_core1_magic, 0);
++
++	/* Need to send additional IT 0 after individual core 1 reset */
++	gicv2_raise_sgi(ARM_IRQ_NON_SEC_SGI_0, STM32MP_SECONDARY_CPU);
++
++	/* Wait for this IT to be acknowledged by ROM code. */
++	udelay(10);
++
+ 	if ((stm32_sec_entrypoint < STM32MP_SYSRAM_BASE) ||
+ 	    (stm32_sec_entrypoint > (STM32MP_SYSRAM_BASE +
+ 				     (STM32MP_SYSRAM_SIZE - 1)))) {
+@@ -107,7 +127,9 @@ static void stm32_pwr_domain_off(const psci_power_state_t *target_state)
+  ******************************************************************************/
+ static void stm32_pwr_domain_suspend(const psci_power_state_t *target_state)
+ {
+-	/* Nothing to do, power domain is not disabled */
++	uint32_t soc_mode = stm32mp1_get_lp_soc_mode(PSCI_MODE_SYSTEM_SUSPEND);
++
++	stm32_enter_low_power(soc_mode, saved_entrypoint);
+ }
+ 
+ /*******************************************************************************
+@@ -134,16 +156,59 @@ static void stm32_pwr_domain_suspend_finish(const psci_power_state_t
+ 	/* Nothing to do, power domain is not disabled */
+ }
+ 
++/*******************************************************************************
++ * STM32MP1 handler called when a core tries to power itself down. If this
++ * call is made by core 0, it is a return from stop mode. In this case, we
++ * should restore previous context and jump to secure entrypoint.
++ ******************************************************************************/
+ static void __dead2 stm32_pwr_domain_pwr_down_wfi(const psci_power_state_t
+ 						  *target_state)
+ {
+-	ERROR("stm32mpu1 Power Down WFI: operation not handled.\n");
++	if (MPIDR_AFFLVL0_VAL(read_mpidr_el1()) == STM32MP_PRIMARY_CPU) {
++		void (*warm_entrypoint)(void) =
++			(void (*)(void))stm32_sec_entrypoint;
++
++		stm32_pwr_down_wfi();
++
++		stm32_exit_cstop();
++
++		disable_mmu_icache_secure();
++
++		warm_entrypoint();
++	}
++
++	mmio_write_32(stm32mp_rcc_base() + RCC_MP_GRSTCSETR,
++		      RCC_MP_GRSTCSETR_MPUP1RST);
++
++	/*
++	 * Synchronize on memory accesses and instruction flow before
++	 * auto-reset from the WFI instruction.
++	 */
++	dsb();
++	isb();
++	wfi();
++
++	/* This shouldn't be reached */
+ 	panic();
+ }
+ 
+ static void __dead2 stm32_system_off(void)
+ {
+-	ERROR("stm32mpu1 System Off: operation not handled.\n");
++	uint32_t soc_mode = stm32mp1_get_lp_soc_mode(PSCI_MODE_SYSTEM_OFF);
++
++	if (!stm32mp_is_single_core()) {
++		/* Prepare Core 1 reset */
++		mmio_setbits_32(stm32mp_rcc_base() + RCC_MP_GRSTCSETR,
++				RCC_MP_GRSTCSETR_MPUP1RST);
++		/* Send IT to core 1 to put itself in WFI */
++		gicv2_raise_sgi(ARM_IRQ_SEC_SGI_1, STM32MP_SECONDARY_CPU);
++	}
++
++	stm32_enter_low_power(soc_mode, 0);
++
++	stm32_pwr_down_wfi();
++
++	/* This shouldn't be reached */
+ 	panic();
+ }
+ 
+@@ -188,6 +253,8 @@ static int stm32_validate_ns_entrypoint(uintptr_t entrypoint)
+ 		return PSCI_E_INVALID_ADDRESS;
+ 	}
+ 
++	saved_entrypoint = entrypoint;
++
+ 	return PSCI_E_SUCCESS;
+ }
+ 
+@@ -211,6 +278,12 @@ static int stm32_node_hw_state(u_register_t target_cpu,
+ 	return (int)HW_ON;
+ }
+ 
++static void stm32_get_sys_suspend_power_state(psci_power_state_t *req_state)
++{
++	req_state->pwr_domain_state[0] = ARM_LOCAL_STATE_OFF;
++	req_state->pwr_domain_state[1] = ARM_LOCAL_STATE_OFF;
++}
++
+ /*******************************************************************************
+  * Export the platform handlers. The ARM Standard platform layer will take care
+  * of registering the handlers with PSCI.
+@@ -227,7 +300,8 @@ static const plat_psci_ops_t stm32_psci_ops = {
+ 	.system_reset = stm32_system_reset,
+ 	.validate_power_state = stm32_validate_power_state,
+ 	.validate_ns_entrypoint = stm32_validate_ns_entrypoint,
+-	.get_node_hw_state = stm32_node_hw_state
++	.get_node_hw_state = stm32_node_hw_state,
++	.get_sys_suspend_power_state = stm32_get_sys_suspend_power_state,
+ };
+ 
+ /*******************************************************************************
+diff --git a/plat/st/stm32mp1/stm32mp1_power_config.c b/plat/st/stm32mp1/stm32mp1_power_config.c
+new file mode 100644
+index 000000000..93644f4ea
+--- /dev/null
++++ b/plat/st/stm32mp1/stm32mp1_power_config.c
+@@ -0,0 +1,130 @@
++/*
++ * Copyright (c) 2017-2019, STMicroelectronics - All Rights Reserved
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++#include <errno.h>
++#include <limits.h>
++
++#include <libfdt.h>
++
++#include <common/debug.h>
++#include <dt-bindings/power/stm32mp1-power.h>
++
++#include <stm32mp_dt.h>
++#include <stm32mp1_power_config.h>
++
++#define DT_PWR_COMPAT			"st,stm32mp1-pwr"
++#define SYSTEM_SUSPEND_SUPPORTED_MODES	"system_suspend_supported_soc_modes"
++#define SYSTEM_OFF_MODE			"system_off_soc_mode"
++
++static uint32_t deepest_system_suspend_mode;
++static uint32_t system_off_mode;
++static uint8_t stm32mp1_supported_soc_modes[STM32_PM_MAX_SOC_MODE];
++
++static int dt_get_pwr_node(void *fdt)
++{
++	return fdt_node_offset_by_compatible(fdt, -1, DT_PWR_COMPAT);
++}
++
++static void save_supported_mode(void *fdt, int pwr_node)
++{
++	int len;
++	uint32_t count;
++	unsigned int i;
++	uint32_t supported[ARRAY_SIZE(stm32mp1_supported_soc_modes)];
++	const void *prop;
++
++	prop = fdt_getprop(fdt, pwr_node, SYSTEM_SUSPEND_SUPPORTED_MODES, &len);
++	if (prop == NULL) {
++		panic();
++	}
++
++	count = (uint32_t)len / sizeof(uint32_t);
++	if (count > STM32_PM_MAX_SOC_MODE) {
++		panic();
++	}
++
++	if (fdt_read_uint32_array(pwr_node, SYSTEM_SUSPEND_SUPPORTED_MODES,
++				  &supported[0], count) < 0) {
++		ERROR("PWR DT\n");
++		panic();
++	}
++
++	for (i = 0; i < count; i++) {
++		if (supported[i] >= STM32_PM_MAX_SOC_MODE) {
++			ERROR("Invalid mode\n");
++			panic();
++		}
++		stm32mp1_supported_soc_modes[supported[i]] = 1U;
++	}
++
++	/* Initialize to deepest possible mode */
++	for (i = STM32_PM_MAX_SOC_MODE - 1U; i != STM32_PM_CSLEEP_RUN; i--) {
++		if (stm32mp1_supported_soc_modes[i] == 1U) {
++			deepest_system_suspend_mode = i;
++			break;
++		}
++	}
++}
++
++static int dt_fill_lp_state(uint32_t *lp_state_config, const char *lp_state)
++{
++	int pwr_node;
++	void *fdt;
++	const fdt32_t *cuint;
++
++	if (fdt_get_address(&fdt) == 0) {
++		return -ENOENT;
++	}
++
++	pwr_node = dt_get_pwr_node(fdt);
++	if (pwr_node < 0) {
++		return -FDT_ERR_NOTFOUND;
++	}
++
++	cuint = fdt_getprop(fdt, pwr_node, lp_state, NULL);
++	if (cuint == NULL) {
++		return -FDT_ERR_NOTFOUND;
++	}
++
++	*lp_state_config = fdt32_to_cpu(*cuint);
++
++	save_supported_mode(fdt, pwr_node);
++
++	return 0;
++}
++
++void stm32mp1_init_lp_states(void)
++{
++	if (dt_fill_lp_state(&system_off_mode, SYSTEM_OFF_MODE) < 0) {
++		ERROR("Node %s not found\n", SYSTEM_OFF_MODE);
++		panic();
++	}
++}
++
++static bool is_allowed_mode(uint32_t soc_mode)
++{
++	assert(soc_mode < ARRAY_SIZE(stm32mp1_supported_soc_modes));
++
++	return stm32mp1_supported_soc_modes[soc_mode] == 1U;
++}
++
++uint32_t stm32mp1_get_lp_soc_mode(uint32_t psci_mode)
++{
++	uint32_t mode;
++
++	if (psci_mode == PSCI_MODE_SYSTEM_OFF) {
++		return system_off_mode;
++	}
++
++	mode = deepest_system_suspend_mode;
++
++	while ((mode > STM32_PM_CSLEEP_RUN) && !is_allowed_mode(mode)) {
++		mode--;
++	}
++
++	return mode;
++}
+diff --git a/plat/st/stm32mp1/stm32mp1_private.c b/plat/st/stm32mp1/stm32mp1_private.c
+index e2dcd2af7..3a7b22e37 100644
+--- a/plat/st/stm32mp1/stm32mp1_private.c
++++ b/plat/st/stm32mp1/stm32mp1_private.c
+@@ -10,8 +10,11 @@
+ 
+ #include <platform_def.h>
+ 
++#include <arch_helpers.h>
++#include <drivers/arm/gicv2.h>
+ #include <drivers/st/stm32_iwdg.h>
+ #include <lib/xlat_tables/xlat_tables_v2.h>
++#include <plat/common/platform.h>
+ 
+ /* Internal layout of the 32bit OTP word board_id */
+ #define BOARD_ID_BOARD_NB_MASK		GENMASK(31, 16)
+@@ -76,6 +79,42 @@ void configure_mmu(void)
+ 	enable_mmu_svc_mon(0);
+ }
+ 
++#define ARM_CNTXCTL_IMASK	BIT(1)
++
++void stm32mp_mask_timer(void)
++{
++	/* Mask timer interrupts */
++	write_cntp_ctl(read_cntp_ctl() | ARM_CNTXCTL_IMASK);
++	write_cntv_ctl(read_cntv_ctl() | ARM_CNTXCTL_IMASK);
++}
++
++void __dead2 stm32mp_wait_cpu_reset(void)
++{
++	uint32_t id;
++
++	dcsw_op_all(DC_OP_CISW);
++	write_sctlr(read_sctlr() & ~SCTLR_C_BIT);
++	dcsw_op_all(DC_OP_CISW);
++	__asm__("clrex");
++
++	dsb();
++	isb();
++
++	for ( ; ; ) {
++		do {
++			id = plat_ic_get_pending_interrupt_id();
++
++			if (id <= MAX_SPI_ID) {
++				gicv2_end_of_interrupt(id);
++
++				plat_ic_disable_interrupt(id);
++			}
++		} while (id <= MAX_SPI_ID);
++
++		wfi();
++	}
++}
++
+ unsigned long stm32_get_gpio_bank_clock(unsigned int bank)
+ {
+ 	if (bank == GPIO_BANK_Z) {
+diff --git a/plat/st/stm32mp1/stm32mp1_shared_resources.c.bak b/plat/st/stm32mp1/stm32mp1_shared_resources.c.bak
+new file mode 100644
+index 000000000..208e34a8b
+--- /dev/null
++++ b/plat/st/stm32mp1/stm32mp1_shared_resources.c.bak
+@@ -0,0 +1,597 @@
++/*
++ * Copyright (c) 2017-2020, STMicroelectronics - All Rights Reserved
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++#include <stdint.h>
++
++#include <platform_def.h>
++
++#include <common/debug.h>
++#include <drivers/st/etzpc.h>
++#include <drivers/st/stm32_gpio.h>
++
++#include <stm32mp_shared_resources.h>
++
++/*
++ * Once one starts to get the resource registering state, one cannot register
++ * new resources. This ensures resource state cannot change.
++ */
++static bool registering_locked;
++
++/*
++ * Shared peripherals and resources registration
++ *
++ * Each resource assignation is stored in a table. The state defaults
++ * to PERIPH_UNREGISTERED if the resource is not explicitly assigned.
++ *
++ * Resource driver that as not embedded (a.k.a their related CFG_xxx build
++ * directive is disabled) are assigned to the non-secure world.
++ *
++ * Each pin of the GPIOZ bank can be secure or non-secure.
++ *
++ * It is the platform responsibility the ensure resource assignation
++ * matches the access permission firewalls configuration.
++ */
++enum shres_state {
++	SHRES_UNREGISTERED = 0,
++	SHRES_SECURE,
++	SHRES_NON_SECURE,
++};
++
++/* Force uint8_t array for array of enum shres_state for size considerations */
++static uint8_t shres_state[STM32MP1_SHRES_COUNT];
++
++static const char *shres2str_id_tbl[STM32MP1_SHRES_COUNT] __unused = {
++	[STM32MP1_SHRES_GPIOZ(0)] = "GPIOZ0",
++	[STM32MP1_SHRES_GPIOZ(1)] = "GPIOZ1",
++	[STM32MP1_SHRES_GPIOZ(2)] = "GPIOZ2",
++	[STM32MP1_SHRES_GPIOZ(3)] = "GPIOZ3",
++	[STM32MP1_SHRES_GPIOZ(4)] = "GPIOZ4",
++	[STM32MP1_SHRES_GPIOZ(5)] = "GPIOZ5",
++	[STM32MP1_SHRES_GPIOZ(6)] = "GPIOZ6",
++	[STM32MP1_SHRES_GPIOZ(7)] = "GPIOZ7",
++	[STM32MP1_SHRES_IWDG1] = "IWDG1",
++	[STM32MP1_SHRES_USART1] = "USART1",
++	[STM32MP1_SHRES_SPI6] = "SPI6",
++	[STM32MP1_SHRES_I2C4] = "I2C4",
++	[STM32MP1_SHRES_RNG1] = "RNG1",
++	[STM32MP1_SHRES_HASH1] = "HASH1",
++	[STM32MP1_SHRES_CRYP1] = "CRYP1",
++	[STM32MP1_SHRES_I2C6] = "I2C6",
++	[STM32MP1_SHRES_RTC] = "RTC",
++	[STM32MP1_SHRES_MCU] = "MCU",
++	[STM32MP1_SHRES_MDMA] = "MDMA",
++	[STM32MP1_SHRES_PLL3] = "PLL3",
++};
++
++static const char __unused *shres2str_id(enum stm32mp_shres id)
++{
++	assert(id < ARRAY_SIZE(shres2str_id_tbl));
++
++	return shres2str_id_tbl[id];
++}
++
++static const char __unused *shres2str_state_tbl[] = {
++	[SHRES_UNREGISTERED] = "unregistered",
++	[SHRES_NON_SECURE] = "non-secure",
++	[SHRES_SECURE] = "secure",
++};
++
++static const char __unused *shres2str_state(unsigned int state)
++{
++	assert(state < ARRAY_SIZE(shres2str_state_tbl));
++
++	return shres2str_state_tbl[state];
++}
++
++/* Get resource state: these accesses lock the registering support */
++static void lock_registering(void)
++{
++	registering_locked = true;
++}
++
++static bool periph_is_non_secure(enum stm32mp_shres id)
++{
++	lock_registering();
++
++	return (shres_state[id] == SHRES_NON_SECURE) ||
++	       (shres_state[id] == SHRES_UNREGISTERED);
++}
++
++static bool periph_is_secure(enum stm32mp_shres id)
++{
++	return !periph_is_non_secure(id);
++}
++
++/* GPIOZ pin count is saved in RAM to prevent parsing FDT several times */
++static int8_t gpioz_nbpin = -1;
++
++static unsigned int get_gpio_nbpin(unsigned int bank)
++{
++	if (bank != GPIO_BANK_Z) {
++		int count = fdt_get_gpio_bank_pin_count(bank);
++
++		assert((count >= 0) || (count <= (GPIO_PIN_MAX + 1)));
++
++		return (unsigned int)count;
++	}
++
++	if (gpioz_nbpin < 0) {
++		int count = fdt_get_gpio_bank_pin_count(GPIO_BANK_Z);
++
++		assert((count == 0) || (count == STM32MP_GPIOZ_PIN_MAX_COUNT));
++
++		gpioz_nbpin = count;
++	}
++
++	return (unsigned int)gpioz_nbpin;
++}
++
++static unsigned int get_gpioz_nbpin(void)
++{
++	return get_gpio_nbpin(GPIO_BANK_Z);
++}
++
++static void register_periph(enum stm32mp_shres id, unsigned int state)
++{
++	assert((id < STM32MP1_SHRES_COUNT) &&
++	       ((state == SHRES_SECURE) || (state == SHRES_NON_SECURE)));
++
++	if (registering_locked) {
++		if (shres_state[id] == state) {
++			return;
++		}
++		panic();
++	}
++
++	if ((shres_state[id] != SHRES_UNREGISTERED) &&
++	    (shres_state[id] != state)) {
++		VERBOSE("Cannot change %s from %s to %s\n",
++			shres2str_id(id),
++			shres2str_state(shres_state[id]),
++			shres2str_state(state));
++		panic();
++	}
++
++	if (shres_state[id] == SHRES_UNREGISTERED) {
++		VERBOSE("Register %s as %s\n",
++			shres2str_id(id), shres2str_state(state));
++	}
++
++	if ((id >= STM32MP1_SHRES_GPIOZ(0)) &&
++	    (id <= STM32MP1_SHRES_GPIOZ(7)) &&
++	    ((id - STM32MP1_SHRES_GPIOZ(0)) >= get_gpioz_nbpin())) {
++		ERROR("Invalid GPIO pin %u, %u pin(s) available\n",
++		      id - STM32MP1_SHRES_GPIOZ(0), get_gpioz_nbpin());
++		panic();
++	}
++
++	shres_state[id] = (uint8_t)state;
++
++	/* Explore clock tree to lock dependencies */
++	if (state == SHRES_SECURE) {
++		enum stm32mp_shres clock_res_id;
++
++		switch (id) {
++		case STM32MP1_SHRES_GPIOZ(0):
++		case STM32MP1_SHRES_GPIOZ(1):
++		case STM32MP1_SHRES_GPIOZ(2):
++		case STM32MP1_SHRES_GPIOZ(3):
++		case STM32MP1_SHRES_GPIOZ(4):
++		case STM32MP1_SHRES_GPIOZ(5):
++		case STM32MP1_SHRES_GPIOZ(6):
++		case STM32MP1_SHRES_GPIOZ(7):
++			clock_res_id = GPIOZ;
++			break;
++		case STM32MP1_SHRES_IWDG1:
++			clock_res_id = IWDG1;
++			break;
++		case STM32MP1_SHRES_USART1:
++			clock_res_id = USART1_K;
++			break;
++		case STM32MP1_SHRES_SPI6:
++			clock_res_id = SPI6_K;
++			break;
++		case STM32MP1_SHRES_I2C4:
++			clock_res_id = I2C4_K;
++			break;
++		case STM32MP1_SHRES_RNG1:
++			clock_res_id = RNG1_K;
++			break;
++		case STM32MP1_SHRES_HASH1:
++			clock_res_id = HASH1;
++			break;
++		case STM32MP1_SHRES_CRYP1:
++			clock_res_id = CRYP1;
++			break;
++		case STM32MP1_SHRES_I2C6:
++			clock_res_id = I2C6_K;
++			break;
++		case STM32MP1_SHRES_RTC:
++			clock_res_id = RTC;
++			break;
++		default:
++			/* No clock resource dependency */
++			return;
++		}
++
++		stm32mp1_register_clock_parents_secure(clock_res_id);
++	}
++}
++
++/* Register resource by ID */
++void stm32mp_register_secure_periph(enum stm32mp_shres id)
++{
++	register_periph(id, SHRES_SECURE);
++}
++
++void stm32mp_register_non_secure_periph(enum stm32mp_shres id)
++{
++	register_periph(id, SHRES_NON_SECURE);
++}
++
++static void register_periph_iomem(uintptr_t base, unsigned int state)
++{
++	enum stm32mp_shres id;
++
++	switch (base) {
++	case CRYP1_BASE:
++		id = STM32MP1_SHRES_CRYP1;
++		break;
++	case HASH1_BASE:
++		id = STM32MP1_SHRES_HASH1;
++		break;
++	case I2C4_BASE:
++		id = STM32MP1_SHRES_I2C4;
++		break;
++	case I2C6_BASE:
++		id = STM32MP1_SHRES_I2C6;
++		break;
++	case IWDG1_BASE:
++		id = STM32MP1_SHRES_IWDG1;
++		break;
++	case RNG1_BASE:
++		id = STM32MP1_SHRES_RNG1;
++		break;
++	case RTC_BASE:
++		id = STM32MP1_SHRES_RTC;
++		break;
++	case SPI6_BASE:
++		id = STM32MP1_SHRES_SPI6;
++		break;
++	case USART1_BASE:
++		id = STM32MP1_SHRES_USART1;
++		break;
++
++	case GPIOA_BASE:
++	case GPIOB_BASE:
++	case GPIOC_BASE:
++	case GPIOD_BASE:
++	case GPIOE_BASE:
++	case GPIOF_BASE:
++	case GPIOG_BASE:
++	case GPIOH_BASE:
++	case GPIOI_BASE:
++	case GPIOJ_BASE:
++	case GPIOK_BASE:
++	case USART2_BASE:
++	case USART3_BASE:
++	case UART4_BASE:
++	case UART5_BASE:
++	case USART6_BASE:
++	case UART7_BASE:
++	case UART8_BASE:
++	case IWDG2_BASE:
++		/* Allow drivers to register some non-secure resources */
++		VERBOSE("IO for non-secure resource 0x%x\n",
++			(unsigned int)base);
++		if (state != SHRES_NON_SECURE) {
++			panic();
++		}
++
++		return;
++
++	default:
++		panic();
++	}
++
++	register_periph(id, state);
++}
++
++void stm32mp_register_secure_periph_iomem(uintptr_t base)
++{
++	register_periph_iomem(base, SHRES_SECURE);
++}
++
++void stm32mp_register_non_secure_periph_iomem(uintptr_t base)
++{
++	register_periph_iomem(base, SHRES_NON_SECURE);
++}
++
++void stm32mp_register_secure_gpio(unsigned int bank, unsigned int pin)
++{
++	switch (bank) {
++	case GPIO_BANK_Z:
++		register_periph(STM32MP1_SHRES_GPIOZ(pin), SHRES_SECURE);
++		break;
++	default:
++		ERROR("GPIO bank %u cannot be secured\n", bank);
++		panic();
++	}
++}
++
++void stm32mp_register_non_secure_gpio(unsigned int bank, unsigned int pin)
++{
++	switch (bank) {
++	case GPIO_BANK_Z:
++		register_periph(STM32MP1_SHRES_GPIOZ(pin), SHRES_NON_SECURE);
++		break;
++	default:
++		break;
++	}
++}
++
++static bool stm32mp_gpio_bank_is_non_secure(unsigned int bank)
++{
++	unsigned int non_secure = 0U;
++	unsigned int i;
++
++	lock_registering();
++
++	if (bank != GPIO_BANK_Z) {
++		return true;
++	}
++
++	for (i = 0U; i < get_gpioz_nbpin(); i++) {
++		if (periph_is_non_secure(STM32MP1_SHRES_GPIOZ(i))) {
++			non_secure++;
++		}
++	}
++
++	return non_secure == get_gpioz_nbpin();
++}
++
++static bool stm32mp_gpio_bank_is_secure(unsigned int bank)
++{
++	unsigned int secure = 0U;
++	unsigned int i;
++
++	lock_registering();
++
++	if (bank != GPIO_BANK_Z) {
++		return false;
++	}
++
++	for (i = 0U; i < get_gpioz_nbpin(); i++) {
++		if (periph_is_secure(STM32MP1_SHRES_GPIOZ(i))) {
++			secure++;
++		}
++	}
++
++	return secure == get_gpioz_nbpin();
++}
++
++bool stm32mp_nsec_can_access_clock(unsigned long clock_id)
++{
++	enum stm32mp_shres shres_id = STM32MP1_SHRES_COUNT;
++
++	switch (clock_id) {
++	case CK_CSI:
++	case CK_HSE:
++	case CK_HSE_DIV2:
++	case CK_HSI:
++	case CK_LSE:
++	case CK_LSI:
++	case PLL1_P:
++	case PLL1_Q:
++	case PLL1_R:
++	case PLL2_P:
++	case PLL2_Q:
++	case PLL2_R:
++	case PLL3_P:
++	case PLL3_Q:
++	case PLL3_R:
++	case RTCAPB:
++		return true;
++	case GPIOZ:
++		/* Allow clock access if at least one pin is non-secure */
++		return !stm32mp_gpio_bank_is_secure(GPIO_BANK_Z);
++	case CRYP1:
++		shres_id = STM32MP1_SHRES_CRYP1;
++		break;
++	case HASH1:
++		shres_id = STM32MP1_SHRES_HASH1;
++		break;
++	case I2C4_K:
++		shres_id = STM32MP1_SHRES_I2C4;
++		break;
++	case I2C6_K:
++		shres_id = STM32MP1_SHRES_I2C6;
++		break;
++	case IWDG1:
++		shres_id = STM32MP1_SHRES_IWDG1;
++		break;
++	case RNG1_K:
++		shres_id = STM32MP1_SHRES_RNG1;
++		break;
++	case RTC:
++		shres_id = STM32MP1_SHRES_RTC;
++		break;
++	case SPI6_K:
++		shres_id = STM32MP1_SHRES_SPI6;
++		break;
++	case USART1_K:
++		shres_id = STM32MP1_SHRES_USART1;
++		break;
++	default:
++		return false;
++	}
++
++	return periph_is_non_secure(shres_id);
++}
++
++bool stm32mp_nsec_can_access_reset(unsigned int reset_id)
++{
++	enum stm32mp_shres shres_id = STM32MP1_SHRES_COUNT;
++
++	switch (reset_id) {
++	case CRYP1_R:
++		shres_id = STM32MP1_SHRES_CRYP1;
++		break;
++	case GPIOZ_R:
++		/* GPIOZ reset mandates all pins are non-secure */
++		return stm32mp_gpio_bank_is_non_secure(GPIO_BANK_Z);
++	case HASH1_R:
++		shres_id = STM32MP1_SHRES_HASH1;
++		break;
++	case I2C4_R:
++		shres_id = STM32MP1_SHRES_I2C4;
++		break;
++	case I2C6_R:
++		shres_id = STM32MP1_SHRES_I2C6;
++		break;
++	case MCU_R:
++		shres_id = STM32MP1_SHRES_MCU;
++		break;
++	case MDMA_R:
++		shres_id = STM32MP1_SHRES_MDMA;
++		break;
++	case RNG1_R:
++		shres_id = STM32MP1_SHRES_RNG1;
++		break;
++	case SPI6_R:
++		shres_id = STM32MP1_SHRES_SPI6;
++		break;
++	case USART1_R:
++		shres_id = STM32MP1_SHRES_USART1;
++		break;
++	default:
++		return false;
++	}
++
++	return periph_is_non_secure(shres_id);
++}
++
++static bool mckprot_protects_periph(enum stm32mp_shres id)
++{
++	switch (id) {
++	case STM32MP1_SHRES_MCU:
++	case STM32MP1_SHRES_PLL3:
++		return true;
++	default:
++		return false;
++	}
++}
++
++/* ETZPC configuration at drivers initialization completion */
++static enum etzpc_decprot_attributes shres2decprot_attr(enum stm32mp_shres id)
++{
++	assert((id < STM32MP1_SHRES_GPIOZ(0)) ||
++	       (id > STM32MP1_SHRES_GPIOZ(7)));
++
++	if (periph_is_non_secure(id)) {
++		return ETZPC_DECPROT_NS_RW;
++	}
++
++	return ETZPC_DECPROT_S_RW;
++}
++
++static void set_etzpc_secure_configuration(void)
++{
++	/* Some system peripherals shall be secure */
++	etzpc_configure_decprot(STM32MP1_ETZPC_STGENC_ID, ETZPC_DECPROT_S_RW);
++	etzpc_configure_decprot(STM32MP1_ETZPC_BKPSRAM_ID, ETZPC_DECPROT_S_RW);
++	etzpc_configure_decprot(STM32MP1_ETZPC_DDRCTRL_ID,
++				ETZPC_DECPROT_NS_R_S_W);
++	etzpc_configure_decprot(STM32MP1_ETZPC_DDRPHYC_ID,
++				ETZPC_DECPROT_NS_R_S_W);
++
++	/* Configure ETZPC with peripheral registering */
++	etzpc_configure_decprot(STM32MP1_ETZPC_CRYP1_ID,
++				shres2decprot_attr(STM32MP1_SHRES_CRYP1));
++	etzpc_configure_decprot(STM32MP1_ETZPC_HASH1_ID,
++				shres2decprot_attr(STM32MP1_SHRES_HASH1));
++	etzpc_configure_decprot(STM32MP1_ETZPC_I2C4_ID,
++				shres2decprot_attr(STM32MP1_SHRES_I2C4));
++	etzpc_configure_decprot(STM32MP1_ETZPC_I2C6_ID,
++				shres2decprot_attr(STM32MP1_SHRES_I2C6));
++	etzpc_configure_decprot(STM32MP1_ETZPC_IWDG1_ID,
++				shres2decprot_attr(STM32MP1_SHRES_IWDG1));
++	etzpc_configure_decprot(STM32MP1_ETZPC_RNG1_ID,
++				shres2decprot_attr(STM32MP1_SHRES_RNG1));
++	etzpc_configure_decprot(STM32MP1_ETZPC_USART1_ID,
++				shres2decprot_attr(STM32MP1_SHRES_USART1));
++	etzpc_configure_decprot(STM32MP1_ETZPC_SPI6_ID,
++				shres2decprot_attr(STM32MP1_SHRES_SPI6));
++}
++
++static void check_rcc_secure_configuration(void)
++{
++	uint32_t n;
++	uint32_t error = 0U;
++	bool mckprot = stm32mp1_rcc_is_mckprot();
++	bool secure = stm32mp1_rcc_is_secure();
++
++	for (n = 0U; n < ARRAY_SIZE(shres_state); n++) {
++		if (shres_state[n] != SHRES_SECURE) {
++			continue;
++		}
++
++		if (!secure || (mckprot_protects_periph(n) && (!mckprot))) {
++			ERROR("RCC %s MCKPROT %s and %s secure\n",
++			      secure ? "secure" : "non-secure",
++			      mckprot ? "set" : "not set",
++			      shres2str_id(n));
++			error++;
++		}
++	}
++
++	if (error != 0U) {
++		panic();
++	}
++}
++
++static void set_gpio_secure_configuration(void)
++{
++	uint32_t pin;
++
++	for (pin = 0U; pin < get_gpioz_nbpin(); pin++) {
++		bool secure_state = periph_is_secure(STM32MP1_SHRES_GPIOZ(pin));
++
++		set_gpio_secure_cfg(GPIO_BANK_Z, pin, secure_state);
++	}
++}
++
++static void print_shared_resources_state(void)
++{
++	unsigned int id;
++
++	for (id = 0U; id < STM32MP1_SHRES_COUNT; id++) {
++		switch (shres_state[id]) {
++		case SHRES_SECURE:
++			INFO("stm32mp1 %s is secure\n", shres2str_id(id));
++			break;
++		case SHRES_NON_SECURE:
++		case SHRES_UNREGISTERED:
++			VERBOSE("stm32mp %s is non-secure\n", shres2str_id(id));
++			break;
++		default:
++			VERBOSE("stm32mp %s is invalid\n", shres2str_id(id));
++			panic();
++		}
++	}
++}
++
++void stm32mp_lock_periph_registering(void)
++{
++	registering_locked = true;
++
++	print_shared_resources_state();
++
++	check_rcc_secure_configuration();
++	set_etzpc_secure_configuration();
++	set_gpio_secure_configuration();
++}
+-- 
+2.27.0
+

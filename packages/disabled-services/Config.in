@@ -1,0 +1,4 @@
+config BR2_PACKAGE_DISABLED_SERVICES
+	bool "disabled-services"
+	help
+	  Provides a systemd preset file to disable units.

@@ -1,0 +1,7 @@
+disable alsa-state.service
+disable alsa-restore.service
+disable ninfod.service
+disable rdisc.service
+disable systemd-network-generator.service
+disable systemd-pstore.service
+disable systemd-time-wait-sync.service

@@ -1,0 +1,33 @@
+From 3eabdda706a8124e90cc1b2e6af918e6439dee6b Mon Sep 17 00:00:00 2001
+From: Jookia <contact@jookia.org>
+Date: Tue, 4 Aug 2020 10:21:11 +1000
+Subject: [PATCH 2/4] Revert "fs: free inodes we no longer need"
+
+This reverts commit 43902e57633f5dd9bc71f1a30d69d7bc0f49dc6b.
+---
+ fs/fs.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/fs/fs.c b/fs/fs.c
+index e04cadfe5..cecb3d70e 100644
+--- a/fs/fs.c
++++ b/fs/fs.c
+@@ -1090,12 +1090,10 @@ void iput(struct inode *inode)
+ 	if (!inode)
+ 		return;
+ 
+-	inode->i_count--;
++	if (!inode->i_count)
++		return;
+ 
+-	if (!inode->i_count) {
+-		list_del(&inode->i_sb_list);
+-		destroy_inode(inode);
+-	}
++	inode->i_count--;
+ }
+ 
+ struct inode *iget(struct inode *inode)
+-- 
+2.28.0
+
