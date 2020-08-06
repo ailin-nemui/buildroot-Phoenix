@@ -30,6 +30,11 @@ image MynaPlayer.img {
 		partition-type = 0x83
 		image = "rootfs.ext4"
 	}
+
+	partition Rauc {
+		partition-type = 0x83
+		image = "rauc.ext4"
+	}
 }
 
 image bundle-MynaPlayer-${GENIMAGE_DATE}.${GENIMAGE_BUILD_ID}.raucb {
@@ -38,9 +43,9 @@ image bundle-MynaPlayer-${GENIMAGE_DATE}.${GENIMAGE_BUILD_ID}.raucb {
 		files = {
 			"rootfs.tar.xz"
 		}
-		key = "${GENIMAGE_PRIVATE_KEY}"
-		cert = "${GENIMAGE_PUBLIC_KEY}"
-		extraargs = "--keyring ${GENIMAGE_CERTIFICATE_AUTHORITY}"
+		key = "${BR2_EXTERNAL_MynaPlayer_PATH}/certs/signing.key"
+		cert = "${BR2_EXTERNAL_MynaPlayer_PATH}/certs/signing.crt"
+		extraargs = "--keyring ${BR2_EXTERNAL_MynaPlayer_PATH}/certs/keyring.pem"
 		manifest = 
 			"[update]
 			compatible=LuminaSensum MynaPlayer

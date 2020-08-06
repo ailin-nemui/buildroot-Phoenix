@@ -1,3 +1,0 @@
-Certificate authority: /path/to/ca.crt
-Private key: /path/to/private.key
-Public key: /path/to/public.crt

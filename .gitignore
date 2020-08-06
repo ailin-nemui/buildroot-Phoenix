@@ -1,8 +1,7 @@
-board/myna-player-odyssey/utilities/certs.txt
 board/myna-player-odyssey/utilities/genimage.cfg
 board/myna-player-odyssey/utilities/machine-id
-pki
+scripts/certs.sh
 easy-rsa
-board/myna-player-odyssey/rootfs_overlay/etc/rauc/keyring.pem
-output/*
-dl/*
+certs
+output
+dl

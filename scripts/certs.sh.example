@@ -1,0 +1,4 @@
+#!/bin/sh
+RAUC_CERTIFICATE_AUTHORITY="/path/to/ca.crt"
+RAUC_PRIVATE_KEY="/path/to/private.key"
+RAUC_PUBLIC_KEY="/path/to/public.crt"

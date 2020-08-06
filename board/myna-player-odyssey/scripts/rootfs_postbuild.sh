@@ -1,14 +1,18 @@
 #!/bin/sh
-# setup machine-id
+
+set -e
+
+. "${BR2_EXTERNAL_MynaPlayer_PATH}"/scripts/certs.sh
+
+# copy machine-id into the target
 
 cp "${BR2_EXTERNAL_MynaPlayer_PATH}"/board/myna-player-odyssey/utilities/machine-id \
 	"${TARGET_DIR}"/etc/machine-id
-chmod 444 "${TARGET_DIR}"/etc/machine-id
 
 # Moving kernel modules into place
 
-rsync -ar ${BASE_DIR}/../kmod/modules/* \
-	${TARGET_DIR}/usr/lib/modules
+rsync -ar "${BASE_DIR}"/../kmod/modules/* \
+	"${TARGET_DIR}"/usr/lib/modules
 
 # lets point emergency.target to reboot.target
 
@@ -27,3 +31,8 @@ mkdir -p "${TARGET_DIR}"/boot
 cp -a "${BASE_DIR}"/../kernel/stm32mp157c-odyssey.dtb \
 	"${BASE_DIR}"/../kernel/zImage \
 	"${TARGET_DIR}"/boot
+
+# grab keyring needed for rauc
+
+cp "${BR2_EXTERNAL_MynaPlayer_PATH}"/certs/keyring.pem \
+	"${TARGET_DIR}"/etc/rauc/keyring.pem
