@@ -2,16 +2,12 @@
 
 set -e
 
-# setup machine-id
-
-cp "${BR2_EXTERNAL_MynaPlayer_PATH}"/board/myna-player-odyssey/utilities/machine-id \
-	"${TARGET_DIR}"/etc/machine-id
-chmod 444 "${TARGET_DIR}"/etc/machine-id
+. "${BR2_EXTERNAL_MynaPlayer_PATH}"/scripts/certs.sh
 
 # Moving kernel modules into place
 
-rsync -ar ${BASE_DIR}/../kmod/modules/* \
-	${TARGET_DIR}/usr/lib/modules
+rsync -ar "${BASE_DIR}"/../kmod/modules/* \
+	"${TARGET_DIR}"/usr/lib/modules
 
 # lets point emergency.target to reboot.target
 
@@ -33,6 +29,5 @@ cp -a "${BASE_DIR}"/../kernel/stm32mp157c-odyssey.dtb \
 
 # grab keyring needed for rauc
 
-RAUC_KEYRING=$(awk '{print $3}' "${BR2_EXTERNAL_MynaPlayer_PATH}/board/myna-player-odyssey/utilities/certs.txt" | sed -n '1p')
-cp "${RAUC_KEYRING}" \
+cp "${BR2_EXTERNAL_MynaPlayer_PATH}"/certs/keyring.pem \
 	"${TARGET_DIR}"/etc/rauc/keyring.pem
