@@ -1,4 +1,7 @@
 #!/bin/sh
+
+set -e
+
 # setup machine-id
 
 cp "${BR2_EXTERNAL_MynaPlayer_PATH}"/board/myna-player-odyssey/utilities/machine-id \
@@ -27,3 +30,9 @@ mkdir -p "${TARGET_DIR}"/boot
 cp -a "${BASE_DIR}"/../kernel/stm32mp157c-odyssey.dtb \
 	"${BASE_DIR}"/../kernel/zImage \
 	"${TARGET_DIR}"/boot
+
+# grab keyring needed for rauc
+
+RAUC_KEYRING=$(awk '{print $3}' "${BR2_EXTERNAL_MynaPlayer_PATH}/board/myna-player-odyssey/utilities/certs.txt" | sed -n '1p')
+cp "${RAUC_KEYRING}" \
+	"${TARGET_DIR}"/etc/rauc/keyring.pem
