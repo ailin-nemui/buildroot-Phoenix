@@ -10,7 +10,6 @@ ln -srf "${TARGET_DIR}"/lib/systemd/systemd \
 dbus-uuidgen > "${BR2_EXTERNAL_MynaPlayer_PATH}"/board/myna-player-odyssey/utilities/machine-id
 cp "${BR2_EXTERNAL_MynaPlayer_PATH}"/board/myna-player-odyssey/utilities/machine-id \
 "${TARGET_DIR}"/etc/machine-id
-chmod 444 "${TARGET_DIR}"/etc/machine-id
 
 # lets point emergency.target to reboot.target
 

@@ -4,6 +4,11 @@ set -e
 
 . "${BR2_EXTERNAL_MynaPlayer_PATH}"/scripts/certs.sh
 
+# copy machine-id into the target
+
+cp "${BR2_EXTERNAL_MynaPlayer_PATH}"/board/myna-player-odyssey/utilities/machine-id \
+	"${TARGET_DIR}"/etc/machine-id
+
 # Moving kernel modules into place
 
 rsync -ar "${BASE_DIR}"/../kmod/modules/* \
