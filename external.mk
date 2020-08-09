@@ -10,4 +10,4 @@ pre-clean:
 rauc-fixups:
 	$(BR2_EXTERNAL_MynaPlayer_PATH)/scripts/rauc_fixups.sh
 
-all: rauc-fixups
+world: rauc-fixups
