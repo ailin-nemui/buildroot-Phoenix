@@ -4,15 +4,14 @@ set -e
 
 . "${BR2_EXTERNAL_MynaPlayer_PATH}"/scripts/certs.sh
 
-# creating directory to store symlinks in
+# creating a clean directory to store copies of files in
 
-mkdir -p "${BR2_EXTERNAL_MynaPlayer_PATH}"/certs
+CERTS_DIR="${BR2_EXTERNAL_MynaPlayer_PATH}"/certs
+test -d "${CERTS_DIR}" && rm -r "${CERTS_DIR}"
+mkdir -p "${CERTS_DIR}"
 
-# lets create the appropriate symlinks to use later with genimage as well as in rootfs_postbuild.sh
+# lets copy the appropriate files to use later with genimage as well as in rootfs_postbuild.sh
 
-ln -sf "${RAUC_CERTIFICATE_AUTHORITY}" \
-	"${BR2_EXTERNAL_MynaPlayer_PATH}"/certs/keyring.pem
-ln -sf "${RAUC_PRIVATE_KEY}" \
-	"${BR2_EXTERNAL_MynaPlayer_PATH}"/certs/signing.key
-ln -sf "${RAUC_PUBLIC_KEY}" \
-	"${BR2_EXTERNAL_MynaPlayer_PATH}"/certs/signing.crt
+cp "${RAUC_CERTIFICATE_AUTHORITY}" "${CERTS_DIR}"/keyring.pem
+cp "${RAUC_PRIVATE_KEY}" "${CERTS_DIR}"/signing.key
+cp "${RAUC_PUBLIC_KEY}" "${CERTS_DIR}"/signing.crt
