@@ -1,4 +1,22 @@
 
+2020-08-11 / 2020-08-11
+=======================
+
+  * Merge pull request #10 from LuminaSensum/WIP_initramfs-less
+	  * board/MynaPlayer odyssey: Add ethernet and machine-id support in barebox.
+	  * board/MynaPlayer odyssey: added pivot_root from util-linux.
+	  * board/MynaPlayer odyssey: add kernel image and device tree to the target via buildroot.
+	  * board/MynaPlayer odyssey: Make ATF much less verbose.
+	  * board/MynaPlayer odyssey: modify boot spec entry.
+	  * board/MynaPlayer odyssey: removed initramfs.
+  * Merge pull request #5 from LuminaSensum/WIP_rauc_fixup
+	  * scripts/rauc_fixups.sh: Copy instead of symlinking
+	  * external.mk: Fix rauc-fixups makefile race
+  * Merge pull request #6 from LuminaSensum/WIP_logcolors
+	  * boot: Add systemd.log_color=off to aid serial logging
+  * Merge pull request #4 from LuminaSensum/WIP_sshd_cleanup
+	  * openssh-systemd: Remove sysvinit files
+
 2020-08-06 / 2020-08-06
 =======================
 
