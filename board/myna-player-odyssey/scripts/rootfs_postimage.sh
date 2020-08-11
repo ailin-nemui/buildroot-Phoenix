@@ -2,11 +2,6 @@
 
 set -e
 
-# copy bootloader
-
-cp "${BASE_DIR}"/../kernel/barebox.bin \
-	"${BINARIES_DIR}"/barebox.bin
-
 # create filesystem for rauc slot status
 
 fallocate -l 2m "${BINARIES_DIR}/rauc.ext4"
