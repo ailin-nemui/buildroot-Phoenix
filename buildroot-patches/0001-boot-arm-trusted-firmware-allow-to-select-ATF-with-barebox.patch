@@ -1,0 +1,25 @@
+From 1cd770b534550b588864223d2c99a01317bc4bb0 Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Fri, 31 Jul 2020 05:20:57 -0400
+Subject: [PATCH] boot/arm-trusted-firmware: allow to select ATF with barebox.
+
+---
+ boot/arm-trusted-firmware/Config.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/boot/arm-trusted-firmware/Config.in b/boot/arm-trusted-firmware/Config.in
+index b1ca5d7ea1..28769131c9 100644
+--- a/boot/arm-trusted-firmware/Config.in
++++ b/boot/arm-trusted-firmware/Config.in
+@@ -1,7 +1,7 @@
+ config BR2_TARGET_ARM_TRUSTED_FIRMWARE
+ 	bool "ARM Trusted Firmware (ATF)"
+ 	depends on (BR2_ARM_CPU_ARMV8A || BR2_ARM_CPU_ARMV7A) && \
+-		   BR2_TARGET_UBOOT
++		   BR2_TARGET_UBOOT || BR2_TARGET_BAREBOX
+ 	help
+ 	  Enable this option if you want to build the ATF for your ARM
+ 	  based embedded device.
+-- 
+2.27.0
+

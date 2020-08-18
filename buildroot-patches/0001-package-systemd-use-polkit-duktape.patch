@@ -1,0 +1,45 @@
+From 65c59d46db7c3070f6547603ff0e11d3dcfe3c4f Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Thu, 11 Jun 2020 02:41:23 -0400
+Subject: [PATCH] package/systemd: use polkit-duktape.
+
+---
+ package/systemd/Config.in  | 7 +------
+ package/systemd/systemd.mk | 2 +-
+ 2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/package/systemd/Config.in b/package/systemd/Config.in
+index dd3b8c534d..1614d484ee 100644
+--- a/package/systemd/Config.in
++++ b/package/systemd/Config.in
+@@ -302,13 +302,8 @@ config BR2_PACKAGE_SYSTEMD_NETWORKD
+ 
+ config BR2_PACKAGE_SYSTEMD_POLKIT
+ 	bool "enable polkit support"
+-	depends on BR2_HOST_GCC_AT_LEAST_4_9 # polkit
+-	depends on BR2_INSTALL_LIBSTDCPP # polkit
+-	depends on BR2_PACKAGE_SPIDERMONKEY_ARCH_SUPPORTS # polkit
+-	depends on BR2_TOOLCHAIN_GCC_AT_LEAST_4_9 # polkit
+-	depends on BR2_TOOLCHAIN_HAS_THREADS_NPTL # polkit
+ 	depends on BR2_USE_WCHAR # libglib2
+-	select BR2_PACKAGE_POLKIT
++	select BR2_PACKAGE_POLKIT_DUKTAPE
+ 	help
+ 	  If enabled, systemd is built with polkit support and policy
+ 	  files for its services are generated and installed. It is
+diff --git a/package/systemd/systemd.mk b/package/systemd/systemd.mk
+index 92de540725..021a084565 100644
+--- a/package/systemd/systemd.mk
++++ b/package/systemd/systemd.mk
+@@ -370,7 +370,7 @@ endif
+ 
+ ifeq ($(BR2_PACKAGE_SYSTEMD_POLKIT),y)
+ SYSTEMD_CONF_OPTS += -Dpolkit=true
+-SYSTEMD_DEPENDENCIES += polkit
++SYSTEMD_DEPENDENCIES += polkit-duktape
+ else
+ SYSTEMD_CONF_OPTS += -Dpolkit=false
+ endif
+-- 
+2.27.0
+
