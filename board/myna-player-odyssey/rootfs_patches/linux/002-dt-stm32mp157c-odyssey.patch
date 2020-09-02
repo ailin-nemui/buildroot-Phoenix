@@ -1,143 +1,8 @@
-From patchwork Fri Jul 31 14:30:53 2020
-Content-Type: text/plain; charset="utf-8"
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-X-Patchwork-Submitter: Marcin Sloniewski <marcin.sloniewski@gmail.com>
-X-Patchwork-Id: 11695069
-Return-Path: 
- <SRS0=vkGX=BK=lists.infradead.org=linux-arm-kernel-bounces+patchwork-linux-arm=patchwork.kernel.org@kernel.org>
-Received: from mail.kernel.org (pdx-korg-mail-1.web.codeaurora.org
- [172.30.200.123])
-	by pdx-korg-patchwork-2.web.codeaurora.org (Postfix) with ESMTP id 0E2F7722
-	for <patchwork-linux-arm@patchwork.kernel.org>;
- Fri, 31 Jul 2020 14:31:41 +0000 (UTC)
-Received: from merlin.infradead.org (merlin.infradead.org [205.233.59.134])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPS id CDF28206FA
-	for <patchwork-linux-arm@patchwork.kernel.org>;
- Fri, 31 Jul 2020 14:31:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lists.infradead.org
- header.i=@lists.infradead.org header.b="MVrwINxK";
-	dkim=fail reason="signature verification failed" (2048-bit key)
- header.d=gmail.com header.i=@gmail.com header.b="SZ9oG3H2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDF28206FA
-Authentication-Results: mail.kernel.org;
- dmarc=fail (p=none dis=none) header.from=gmail.com
-Authentication-Results: mail.kernel.org;
- spf=none
- smtp.mailfrom=linux-arm-kernel-bounces+patchwork-linux-arm=patchwork.kernel.org@lists.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=lists.infradead.org; s=merlin.20170209; h=Sender:Content-Transfer-Encoding:
-	Content-Type:Cc:List-Subscribe:List-Help:List-Post:List-Archive:
-	List-Unsubscribe:List-Id:MIME-Version:References:In-Reply-To:Message-Id:Date:
-	Subject:To:From:Reply-To:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Owner;
-	 bh=ZqBehaVL3E9eAw7j29eP6hbbkkiJUDH1GEZqX8aJ6vw=; b=MVrwINxKoSfoJJrDJ6zIwcX37
-	1GLYn4tMDueqvtdwAOeCFeZXTUgKsF7XBTM36eEeqZl8DXUb4PcVqIl2uoaar1n07kU7g/XE5Z5Ub
-	fo1XQ6dROPOsp9Xyow/fq97tjuL4mnlMWy3Rc9a/KRXR/cjl0oVhK2E3KrtQjPDfDZI33QGljUs1l
-	8KEu12M3vEcdIhnLMEgeUllRsw8EVOzTHWcRemhwiP0LuU8kNQri8fLuxmLiY7eyaU5HIx0Krxc5N
-	A39mlWUl9iBrvGgjZp9rGKHZWI8qi3eSRaEatIgFfjq5JLqzaZdAHP9/HnlCKsB6bqYDmrsmjOAp1
-	GgcQA+G9A==;
-Received: from localhost ([::1] helo=merlin.infradead.org)
-	by merlin.infradead.org with esmtp (Exim 4.92.3 #3 (Red Hat Linux))
-	id 1k1W4G-0007yo-4O; Fri, 31 Jul 2020 14:31:28 +0000
-Received: from mail-ed1-x544.google.com ([2a00:1450:4864:20::544])
- by merlin.infradead.org with esmtps (Exim 4.92.3 #3 (Red Hat Linux))
- id 1k1W43-0007vl-7u
- for linux-arm-kernel@lists.infradead.org; Fri, 31 Jul 2020 14:31:17 +0000
-Received: by mail-ed1-x544.google.com with SMTP id l23so8795737edv.11
- for <linux-arm-kernel@lists.infradead.org>;
- Fri, 31 Jul 2020 07:31:14 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com; s=20161025;
- h=from:to:cc:subject:date:message-id:in-reply-to:references
- :mime-version:content-transfer-encoding;
- bh=gXlatC5AsQuoD+3uBEzYu5ZAaHxOzY+84bpiZ1VQWHU=;
- b=SZ9oG3H2bHMpUbOj4x4iCst17tROZ9eCea4P1DW0ECVd1hFkPes3cu0AL/XuSpPGw/
- WkesdNpda3BgS++sJrC7xXCwguI2Td+FW4uoCTNnISb4e493jpVveY05k2AgKffIwpyB
- Yjq3WTBKWAXCAS/p8PqSAoqicx7Rd1ixJ9WjnfumkCj7USMzHRjmSvYObi9BFNZmd6vA
- 0m8oAlHULlRwp2IpHxJtjZn9FA8CMEl4wxzxKAYMPnvJ+Pxgj+oqUIYNYQ9qQikI5Rwa
- 7dJlplf1iCDpK4H3fRXRS2zmnej+aTIx/dBmtmyBrkNEKukxreR/FGM6qALVkNG3s0F5
- wAfQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=1e100.net; s=20161025;
- h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
- :references:mime-version:content-transfer-encoding;
- bh=gXlatC5AsQuoD+3uBEzYu5ZAaHxOzY+84bpiZ1VQWHU=;
- b=WBpvi05OfM9vbn8I/rsaI9tdORKkPgIt2QagURBkQuhQUv+MUVYxBn0lQrwLsDupfE
- dTd/KSF76FM48hi9Qpw9vWPCCjN3MbbxfCubOfitA6ERYn6UPJz0oKQ/q+R2PxWUe94j
- 13v3fBMuk4K/F5OqoP307+3MEm7N+VhBb1SMpb7auCFpW5s/gbyCZgCmqK+nL+2LuH3S
- L162gEzFnRnh+cVWTsmQO8ncEk8H1NjpG88bKcChy+l/s8YkUJyy/jrXOMcgKPtCnMMp
- nk9E7AzVcCI5q9p48caCM7IyP1PsaIQXzGf4N50iXOtl99bmfT0dMvYoItedjAf3QQgL
- 0p3w==
-X-Gm-Message-State: AOAM5319nwH6eaYvyTpx6i1M+SMQF/vZWNWeyp+U85+s7yi4S3itOjhy
- tg/ktc9PBOlYlDo4U7GSIGyw40qPJ0Q=
-X-Google-Smtp-Source: 
- ABdhPJw0QytN7CLiwpQs2xmXp+75EYfsbHr8vacXofDKzvnNX7QWIqKT/e3FiqX8+/8CLuUUrimiJw==
-X-Received: by 2002:a05:6402:1845:: with SMTP id
- v5mr4340661edy.66.1596205873413;
- Fri, 31 Jul 2020 07:31:13 -0700 (PDT)
-Received: from blackhead.home ([2a01:112f:a1c:7900:7316:ce1e:7b0b:6bd7])
- by smtp.gmail.com with ESMTPSA id t19sm9749213edw.63.2020.07.31.07.31.11
- (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
- Fri, 31 Jul 2020 07:31:12 -0700 (PDT)
+From b70a4f521d1d0c09e18f4e60c99b7e9017908f41 Mon Sep 17 00:00:00 2001
 From: Marcin Sloniewski <marcin.sloniewski@gmail.com>
-To: linux-arm-kernel@lists.infradead.org
-Subject: [PATCH v6 3/3] ARM: dts: stm32: add initial support for
+Date: Sun, 9 Aug 2020 18:44:50 +0200
+Subject: [PATCH 3/7] ARM: dts: stm32: add initial support for
  stm32mp157-odyssey board
-Date: Fri, 31 Jul 2020 16:30:53 +0200
-Message-Id: <20200731143053.44866-3-marcin.sloniewski@gmail.com>
-X-Mailer: git-send-email 2.27.0
-In-Reply-To: <20200731143053.44866-1-marcin.sloniewski@gmail.com>
-References: <20200731143053.44866-1-marcin.sloniewski@gmail.com>
-MIME-Version: 1.0
-X-CRM114-Version: 20100106-BlameMichelson ( TRE 0.8.0 (BSD) ) MR-646709E3 
-X-CRM114-CacheID: sfid-20200731_103115_377803_90B11FBF 
-X-CRM114-Status: GOOD (  22.84  )
-X-Spam-Score: -0.2 (/)
-X-Spam-Report: SpamAssassin version 3.4.4 on merlin.infradead.org summary:
- Content analysis details:   (-0.2 points)
- pts rule name              description
- ---- ----------------------
- --------------------------------------------------
- -0.0 RCVD_IN_DNSWL_NONE     RBL: Sender listed at https://www.dnswl.org/,
- no trust [2a00:1450:4864:20:0:0:0:544 listed in]
- [list.dnswl.org]
- 0.0 FREEMAIL_FROM          Sender email is commonly abused enduser mail
- provider [marcin.sloniewski[at]gmail.com]
- -0.0 SPF_PASS               SPF: sender matches SPF record
- 0.0 SPF_HELO_NONE          SPF: HELO does not publish an SPF Record
- -0.1 DKIM_VALID_EF          Message has a valid DKIM or DK signature from
- envelope-from domain
- 0.1 DKIM_SIGNED            Message has a DKIM or DK signature,
- not necessarily
- valid
- -0.1 DKIM_VALID Message has at least one valid DKIM or DK signature
- -0.1 DKIM_VALID_AU          Message has a valid DKIM or DK signature from
- author's domain
-X-BeenThere: linux-arm-kernel@lists.infradead.org
-X-Mailman-Version: 2.1.29
-Precedence: list
-List-Id: <linux-arm-kernel.lists.infradead.org>
-List-Unsubscribe: 
- <http://lists.infradead.org/mailman/options/linux-arm-kernel>,
- <mailto:linux-arm-kernel-request@lists.infradead.org?subject=unsubscribe>
-List-Archive: <http://lists.infradead.org/pipermail/linux-arm-kernel/>
-List-Post: <mailto:linux-arm-kernel@lists.infradead.org>
-List-Help: <mailto:linux-arm-kernel-request@lists.infradead.org?subject=help>
-List-Subscribe: 
- <http://lists.infradead.org/mailman/listinfo/linux-arm-kernel>,
- <mailto:linux-arm-kernel-request@lists.infradead.org?subject=subscribe>
-Cc: robh@kernel.org, a.fatoum@pengutronix.de, alexandre.torgue@st.com,
- stephan@gerhold.net, mani@kernel.org, heiko.stuebner@theobroma-systems.com,
- linus.walleij@linaro.org, linux-kernel@vger.kernel.org, lkundrak@v3.sk,
- marcin.sloniewski@gmail.com, robh+dt@kernel.org, broonie@kernel.org,
- mcoquelin.stm32@gmail.com, allen.chen@ite.com.tw, sam@ravnborg.org,
- linux-stm32@st-md-mailman.stormreply.com, devicetree@vger.kernel.org
-Sender: "linux-arm-kernel" <linux-arm-kernel-bounces@lists.infradead.org>
-Errors-To: 
- linux-arm-kernel-bounces+patchwork-linux-arm=patchwork.kernel.org@lists.infradead.org
 
 Add support for Seeed Studio's stm32mp157c odyssey board.
 Board consists of SoM with stm32mp157c with 4GB eMMC and 512 MB DDR3 RAM
@@ -148,38 +13,13 @@ In this patch only basic kernel boot is supported and interfacing
 SD card and on-board eMMC.
 
 Signed-off-by: Marcin Sloniewski <marcin.sloniewski@gmail.com>
+Reviewed-by: Ahmad Fatoum <a.fatoum@pengutronix.de>
 ---
-
-Changes in v6:
-- add reset pin for eth phy
-- move pinctrl for sdmmc2 to stm32mp15-pinctrl.dtsi
-
-Changes in v5:
-- fix schema for board's dts
-
-Changes in v4:
-- add seeed,stm32mp157c-odyssey-som in compatible
-  for carrier board
-- fix sdmmc2 interface by changing one of the pins
-  to use
-- change eth phy address to 7
-
-Changes in v3:
-- fix compilation on tip of stm32-next
-  due to change in names for pinctrl
-- fix deprecated binding for led node
-- fix redundant "okay" statuses
-- add phy part number for eth in comment
-
-Changes in v2:
-- add new odyssey dts to Makefile
-
-
  arch/arm/boot/dts/Makefile                    |   3 +-
  arch/arm/boot/dts/stm32mp15-pinctrl.dtsi      |  18 ++
  .../arm/boot/dts/stm32mp157c-odyssey-som.dtsi | 276 ++++++++++++++++++
- arch/arm/boot/dts/stm32mp157c-odyssey.dts     |  76 +++++
- 4 files changed, 372 insertions(+), 1 deletion(-)
+ arch/arm/boot/dts/stm32mp157c-odyssey.dts     |  80 +++++
+ 4 files changed, 376 insertions(+), 1 deletion(-)
  create mode 100644 arch/arm/boot/dts/stm32mp157c-odyssey-som.dtsi
  create mode 100644 arch/arm/boot/dts/stm32mp157c-odyssey.dts
 
@@ -198,10 +38,10 @@ index e6a1cac0bfc7..a3ea2301c82c 100644
  	sun4i-a10-a1000.dtb \
  	sun4i-a10-ba10-tvbox.dtb \
 diff --git a/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi b/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi
-index b5a66429670c..a47eaecbde42 100644
+index 7eb858732d6d..2f75b631feac 100644
 --- a/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi
 +++ b/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi
-@@ -1437,6 +1437,24 @@ pins {
+@@ -1438,6 +1438,24 @@
  		};
  	};
  
@@ -510,10 +350,10 @@ index 000000000000..6cf49a0a9e69
 +
 diff --git a/arch/arm/boot/dts/stm32mp157c-odyssey.dts b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
 new file mode 100644
-index 000000000000..f2ac92f1ad10
+index 000000000000..a7ffec8f1516
 --- /dev/null
 +++ b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,80 @@
 +// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 +/*
 + * Copyright (C) 2020 Marcin Sloniewski <marcin.sloniewski@gmail.com>.
@@ -546,6 +386,10 @@ index 000000000000..f2ac92f1ad10
 +	phy-mode = "rgmii-id";
 +	max-speed = <1000>;
 +	phy-handle = <&phy0>;
++	assigned-clocks = <&rcc ETHCK_K>, <&rcc PLL4_P>;
++	assigned-clock-parents = <&rcc PLL4_P>;
++	assigned-clock-rates = <125000000>; /* Clock PLL4 to 750Mhz in ATF/U-Boot */
++	st,eth-clk-sel;
 +
 +	mdio0 {
 +		#address-cells = <1>;
@@ -590,3 +434,6 @@ index 000000000000..f2ac92f1ad10
 +	status = "okay";
 +};
 +
+-- 
+2.20.1
+

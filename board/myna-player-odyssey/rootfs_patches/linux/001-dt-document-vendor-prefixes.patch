@@ -1,0 +1,31 @@
+From faec90aac9be0611a4f63a9b13df74b0657b3732 Mon Sep 17 00:00:00 2001
+From: Marcin Sloniewski <marcin.sloniewski@gmail.com>
+Date: Sun, 9 Aug 2020 18:44:49 +0200
+Subject: [PATCH 2/7] dt-bindings: arm: stm32: document Odyssey compatible
+
+Document device tree bindings of Seeed SoM and carrier board.
+
+Signed-off-by: Marcin Sloniewski <marcin.sloniewski@gmail.com>
+Reviewed-by: Rob Herring <robh@kernel.org>
+---
+ Documentation/devicetree/bindings/arm/stm32/stm32.yaml | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/arm/stm32/stm32.yaml b/Documentation/devicetree/bindings/arm/stm32/stm32.yaml
+index 790e6dd48e34..3b318fe15194 100644
+--- a/Documentation/devicetree/bindings/arm/stm32/stm32.yaml
++++ b/Documentation/devicetree/bindings/arm/stm32/stm32.yaml
+@@ -50,4 +50,10 @@ properties:
+           - const: st,stm32mp157c-ev1
+           - const: st,stm32mp157c-ed1
+           - const: st,stm32mp157
++      - description: Odyssey STM32MP1 SoM based Boards
++        items:
++              - enum:
++                  - seeed,stm32mp157c-odyssey
++              - const: seeed,stm32mp157c-odyssey-som
++              - const: st,stm32mp157
+ ...
+-- 
+2.20.1
+
