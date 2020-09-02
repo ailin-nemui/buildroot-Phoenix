@@ -2,6 +2,7 @@ menu "Target packages"
 
 source "$BR2_EXTERNAL_MynaPlayer_PATH/packages/disabled-services/Config.in"
 source "$BR2_EXTERNAL_MynaPlayer_PATH/packages/duktape-pc/Config.in"
+source "$BR2_EXTERNAL_MynaPlayer_PATH/packages/lifepo4wered-pi/Config.in"
 source "$BR2_EXTERNAL_MynaPlayer_PATH/packages/openssh-systemd/Config.in"
 source "$BR2_EXTERNAL_MynaPlayer_PATH/packages/polkit-duktape/Config.in"
 

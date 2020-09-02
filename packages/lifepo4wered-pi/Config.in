@@ -1,0 +1,7 @@
+config BR2_PACKAGE_LIFEPO4WERED_PI
+	bool "LiFePO4wered-Pi"
+	help
+	  Access library, command line tool and daemon
+	  for the LiFePO4wered/Pi module.
+
+	  https://github.com/xorbit/LiFePO4wered-Pi
