@@ -1,4 +1,37 @@
 
+2020-09-06 / 2020-09-06
+=======================
+
+  * board/MynaPlayer odyssey: added gptfdisk package (gdisk/sgdisk).
+  * board/MynaPlayer odyssey: bump kernel to 5.8.7.
+  * board/MynaPlayer odyssey: Allow root to login via ssh (prohibit-password). Disabled clear text password authentification.
+  * Merge pull request #12 from LuminaSensum/NM-ipv6-fixups
+	  * board/MynaPlayer odyssey: fix IPv6 for the wired connection.
+  * Merge pull request #19 from LuminaSensum/WIP_debugging
+	  * packages: Enable strace
+	  * packages: Enable trace-cmd
+	  * linux: Enable tracing kernel config
+	  * toolchain: Copy gdbserver to target
+  * Merge pull request #16 from LuminaSensum/kernel_improvements
+	  * board/MynaPlayer odyssey: disable some more useless kernel drivers.
+	  * board/MynaPlayer odyssey: various kernel improvements.
+	  * board/MynaPlayer odyssey: build with NEON FPU and THUMB-2 instruction set.
+  * Merge pull request #15 from LuminaSensum/lifepo4wered-pi
+	  * packages/lifepo4wered-pi: make it possible to select this with or without systemd.
+	  * packages/lifepo4wered-pi: remove systemd requirement.
+	  * board/MynaPlayer odyssey: select lifepo4wered-pi package.
+	  * packages/lifepo4wered-pi: new package.
+  * Merge pull request #14 from LuminaSensum/WIP_wifi
+	  * board/MynaPlayer odyssey: add wpa_supplicant.
+  * Merge pull request #11 from LuminaSensum/WIP_peripherals
+	  * linux patches: Add Wi-Fi to the device tree
+	  * linux patches: Add i2c patches
+	  * linux patches: Rename patches to make updating easier
+	  * linux patches: Update to v7 of the stm32mp157c-odyssey patchset
+  * Merge pull request #3 from LuminaSensum/WIP_README
+	  * README.md: Add instructions for building and installation
+	  * buildroot-patches: Add patches needed for Buildroot
+
 2020-08-11 / 2020-08-11
 =======================
 
