@@ -1,0 +1,7 @@
+[Unit]
+Description=Unit triggered on rauc-marking-good failing
+SuccessAction=reboot
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
