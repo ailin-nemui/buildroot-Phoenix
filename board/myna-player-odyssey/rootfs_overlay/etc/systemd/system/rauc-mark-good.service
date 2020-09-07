@@ -1,0 +1,13 @@
+[Unit]
+Description=Rauc marking good service
+ConditionKernelCommandLine=|bootchooser.active
+After=NetworkManager.service serial-getty@ttySTM0.service sshd.service
+Requires=sshd.service serial-getty@ttySTM0.service NetworkManager.service
+OnFailure=rauc-failure.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/rauc status mark-good
+
+[Install]
+WantedBy=multi-user.target
