@@ -1,6 +1,11 @@
 This is the external Buildroot repository used to build system images and
 updates for the MynaPlayer project.
 
+Changelog
+--------
+
+A [changelog](https://git.lumina-sensum.com/LuminaSensum/buildroot-MynaPlayer/blob/stable-dev-board/changelog.md) is available so that users and developers can quickly check what changed between releases.
+
 Building
 --------
 
