@@ -94,7 +94,7 @@ First, copy RAUC bundles and keys to your server:
 ls buildroot/output_build/images/
 # Find the file ending in *.raucb
 # You can also just flash MynaPlayer.img using dd but it takes a long time
-mv buildroot/output_build/images/bundle-MynaPlayer-2020-08-06.fe2ca3ce-be36-4f33-94d4-e295cd0518be.raucb /var/www/www.jookia.org/
+mv buildroot/output_build/images/bundle-MynaPlayer.2020-09-06.raucb /var/www/www.jookia.org/
 cp $PWD/easy-rsa/pki/ca.crt /var/www/www.jookia.org/
 chmod a+r /var/www/www.jookia.org/ca.crt
 ```
@@ -105,10 +105,15 @@ Install the update on the device from the server:
 wget 'https://www.jookia.org/ca.crt'
 cp /etc/rauc/keyring.pem{,.bak}
 mv ca.crt /etc/rauc/keyring.pem
-rauc install https://www.jookia.org/bundle-MynaPlayer-2020-08-06.fe2ca3ce-be36-4f33-94d4-e295cd0518be.raucb
+rauc install https://www.jookia.org/bundle-MynaPlayer.2020-09-06.raucb
 mv /etc/rauc/keyring.pem{.bak,}
 reboot
 ```
+
+* Notes:
+	* The bundle file name is derived from git describe, and might differ slightly if you use a branch with committed but not yet released work. E.g: bundle-MynaPlayer.2020-09-06-18-g3d0589f.raucb.
+	* If you have uncommitted work present in your branch, then the file name will have a 'dirty' tag added.
+	* If your git index and cache become corrupted for any reason, your bundle will have a 'broken' tag added. This doesn't indicate by any means that your image is broken!
 
 Future updates won't need to copy the keyring, a single 'rauc install'
 invocation should download and install the image without trouble.

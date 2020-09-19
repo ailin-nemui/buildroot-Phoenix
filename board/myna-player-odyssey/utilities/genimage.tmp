@@ -1,5 +1,5 @@
 image MynaPlayer.img {
-	name = "MynaPlayer-${GENIMAGE_DATE}"
+	name = "MynaPlayer-${GENIMAGE_BUILD_ID}"
 	hdimage {
 		gpt = "true"
 	}
@@ -37,8 +37,8 @@ image MynaPlayer.img {
 	}
 }
 
-image bundle-MynaPlayer-${GENIMAGE_DATE}.${GENIMAGE_BUILD_ID}.raucb {
-	name = "bundle-MynaPlayer-${GENIMAGE_DATE}"
+image bundle-MynaPlayer.${GENIMAGE_BUILD_ID}.raucb {
+	name = "bundle-MynaPlayer-${GENIMAGE_BUILD_ID}"
 	rauc {
 		files = {
 			"rootfs.tar.xz"
@@ -49,9 +49,8 @@ image bundle-MynaPlayer-${GENIMAGE_DATE}.${GENIMAGE_BUILD_ID}.raucb {
 		manifest = 
 			"[update]
 			compatible=LuminaSensum MynaPlayer
-			version=${GENIMAGE_DATE}
-			build=${GENIMAGE_BUILD_ID}
-			description=RAUC bundle for LuminaSensum MynaPlayer version ${GENIMAGE_DATE}, built by ${GENIMAGE_USER}@${GENIMAGE_HOST}.
+			version=${GENIMAGE_BUILD_ID}
+			description=RAUC bundle for LuminaSensum MynaPlayer version ${GENIMAGE_BUILD_ID}, built by ${GENIMAGE_USER}@${GENIMAGE_HOST}.
 			[image.rootfs]
 			filename=rootfs.tar.xz"
 	}
