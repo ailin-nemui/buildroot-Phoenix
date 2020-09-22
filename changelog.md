@@ -1,4 +1,28 @@
 
+2020-09-22 / 2020-09-22
+=======================
+
+  * Merge pull request #30 from LuminaSensum/WIP_barebox-env
+	  * board/MynaPlayer odyssey: add default built-in barebox environment.
+  * Merge pull request #29 from LuminaSensum/WIP_terminfo-2
+	  * board/MynaPlayer odyssey: fix terminfo's additional files to include screen.linux.
+  * Merge pull request #28 from LuminaSensum/kernel-bump
+	  * board/MynaPlayer odyssey: bump kernel to 5.8.10.
+  * Merge pull request #26 from LuminaSensum/WIP_build-id
+	  * board/MynaPlayer odyssey: changed the way the file name and metadata of the images are constructed.
+  * Merge pull request #27 from LuminaSensum/WIP_changelog
+	  * Added the changelog in the readme.
+  * Merge pull request #23 from LuminaSensum/WIP_preinit
+	  * board/MynaPlayer odyssey: add pre-init script to setup overlay filesystem.
+  * Merge pull request #25 from LuminaSensum/WIP_terminfo
+	  * board/MynaPlayer odyssey: add screen and tmux terminfo files into the target.
+  * Merge pull request #24 from LuminaSensum/WIP_rauc
+	  * board/MynaPlayer odyssey: added basic service to mark boot as good with rauc.
+  * Merge pull request #22 from LuminaSensum/WIP_squashfs
+	  * board/MynaPlayer odyssey: rework squashfs support
+  * Merge pull request #21 from LuminaSensum/WIP_ipv6
+	  * board/MynaPlayer odyssey: fix networking for good.
+
 2020-09-06 / 2020-09-06
 =======================
 
