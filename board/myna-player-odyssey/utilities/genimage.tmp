@@ -17,23 +17,23 @@ image MynaPlayer.img {
 	}
 
 	partition ssbl {
-		partition-type = 0x83
 		image = "barebox.bin"
 	}
 
 	partition PrimaryRootfs {
-		partition-type = 0x83
 		image = "rootfs.ext4"
 	}
 
 	partition SecondaryRootfs {
-		partition-type = 0x83
 		image = "rootfs.ext4"
 	}
 
 	partition Rauc {
-		partition-type = 0x83
 		image = "rauc.ext4"
+	}
+
+	partition overlayfs {
+		image = "overlayfs.ext4"
 	}
 }
 
