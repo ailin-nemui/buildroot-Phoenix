@@ -1,3 +1,12 @@
+image overlayfs.ext4 {
+	ext4 {
+		use-mke2fs = "true"
+		label = "overlayfs"
+	}
+	empty = "true"
+	size = 2G
+}
+
 image MynaPlayer.img {
 	name = "MynaPlayer-${GENIMAGE_BUILD_ID}"
 	hdimage {
@@ -26,10 +35,6 @@ image MynaPlayer.img {
 
 	partition SecondaryRootfs {
 		image = "rootfs.ext4"
-	}
-
-	partition Rauc {
-		image = "rauc.ext4"
 	}
 
 	partition overlayfs {

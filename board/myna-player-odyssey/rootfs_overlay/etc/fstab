@@ -1,1 +1,0 @@
-PARTLABEL=Rauc	/rauc	ext4	rw,relatime,data=journal,noauto,x-systemd.automount

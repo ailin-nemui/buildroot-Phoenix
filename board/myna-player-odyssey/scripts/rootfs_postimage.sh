@@ -2,11 +2,6 @@
 
 set -e
 
-# create filesystem for rauc slot status
-
-fallocate -l 2m "${BINARIES_DIR}/rauc.ext4"
-mkfs.ext4 -F "${BINARIES_DIR}/rauc.ext4"
-
 # prepare for genimage
 cd "${BINARIES_DIR}"
 export GENIMAGE_TMP=${BR2_EXTERNAL_MynaPlayer_PATH}/board/myna-player-odyssey/utilities/genimage.tmp

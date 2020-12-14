@@ -7,6 +7,7 @@ OnFailure=rauc-failure.service
 
 [Service]
 Type=oneshot
+ExecStartPre=/usr/bin/mkdir -p /rauc
 ExecStart=/usr/bin/rauc status mark-good
 
 [Install]
