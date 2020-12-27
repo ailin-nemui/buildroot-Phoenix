@@ -35,11 +35,11 @@ Create keys for RAUC updates:
 
 ```
 cd easy-rsa
-sed -i "s/extendedKeyUsage/#extendedKeyUsage/g" easyrsa3/x509-types/code-signing
-./easyrsa3/easyrsa init-pki
-./easyrsa3/easyrsa build-ca
-./easyrsa3/easyrsa gen-req rauc
-./easyrsa3/easyrsa sign-req code-signing rauc
+sed -i "s/extendedKeyUsage/#extendedKeyUsage/g" x509-types/code-signing
+./easyrsa init-pki
+./easyrsa build-ca
+./easyrsa gen-req rauc
+./easyrsa sign-req code-signing rauc
 cd ..
 cat >buildroot-MynaPlayer/scripts/certs.sh <<EOF
 #!/bin/sh
