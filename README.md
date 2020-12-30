@@ -4,7 +4,7 @@ updates for the Phoenix project.
 Changelog
 --------
 
-A [changelog](https://git.xogium.me/xogium/buildroot-Phoenix/blob/stable/changelog.md) is available so that users and developers can quickly check what changed between releases.
+A [changelog](https://git.xogium.me/xogium/buildroot-Phoenix/blob/phoenix-stable/changelog.md) is available so that users and developers can quickly check what changed between releases.
 
 Building
 --------
