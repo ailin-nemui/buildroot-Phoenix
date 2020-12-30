@@ -25,7 +25,7 @@ mount -t tmpfs none /run
 # So mount and create these directories.
 
 mkdir /run/data
-mount /dev/mmcblk2p6 /run/data
+mount /dev/mmcblk2p5 /run/data
 for i in overlay_root overlay_work; do
   mkdir -p /run/data/$i;
 done
