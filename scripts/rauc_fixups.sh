@@ -2,11 +2,11 @@
 
 set -e
 
-. "${BR2_EXTERNAL_MynaPlayer_PATH}"/scripts/certs.sh
+. "${BR2_EXTERNAL_PHOENIX_PATH}"/scripts/certs.sh
 
 # creating a clean directory to store copies of files in
 
-CERTS_DIR="${BR2_EXTERNAL_MynaPlayer_PATH}"/certs
+CERTS_DIR="${BR2_EXTERNAL_PHOENIX_PATH}"/certs
 test -d "${CERTS_DIR}" && rm -r "${CERTS_DIR}"
 mkdir -p "${CERTS_DIR}"
 

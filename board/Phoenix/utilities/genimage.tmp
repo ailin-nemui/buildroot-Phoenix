@@ -7,8 +7,8 @@ image overlayfs.ext4 {
 	size = 2G
 }
 
-image MynaPlayer.img {
-	name = "MynaPlayer-${GENIMAGE_BUILD_ID}"
+image PHOENIX.img {
+	name = "PHOENIX-${GENIMAGE_BUILD_ID}"
 	hdimage {
 		gpt = "true"
 	}
@@ -42,20 +42,20 @@ image MynaPlayer.img {
 	}
 }
 
-image bundle-MynaPlayer.${GENIMAGE_BUILD_ID}.raucb {
-	name = "bundle-MynaPlayer-${GENIMAGE_BUILD_ID}"
+image bundle-Phoenix.${GENIMAGE_BUILD_ID}.raucb {
+	name = "bundle-PHOENIX-${GENIMAGE_BUILD_ID}"
 	rauc {
 		files = {
 			"rootfs.tar.xz"
 		}
-		key = "${BR2_EXTERNAL_MynaPlayer_PATH}/certs/signing.key"
-		cert = "${BR2_EXTERNAL_MynaPlayer_PATH}/certs/signing.crt"
-		extraargs = "--keyring ${BR2_EXTERNAL_MynaPlayer_PATH}/certs/keyring.pem"
+		key = "${BR2_EXTERNAL_PHOENIX_PATH}/certs/signing.key"
+		cert = "${BR2_EXTERNAL_PHOENIX_PATH}/certs/signing.crt"
+		extraargs = "--keyring ${BR2_EXTERNAL_PHOENIX_PATH}/certs/keyring.pem"
 		manifest = 
 			"[update]
-			compatible=LuminaSensum MynaPlayer
+			compatible=Phoenix
 			version=${GENIMAGE_BUILD_ID}
-			description=RAUC bundle for LuminaSensum MynaPlayer version ${GENIMAGE_BUILD_ID}, built by ${GENIMAGE_USER}@${GENIMAGE_HOST}.
+			description=RAUC bundle for Phoenix version ${GENIMAGE_BUILD_ID}, built by ${GENIMAGE_USER}@${GENIMAGE_HOST}.
 			[image.rootfs]
 			filename=rootfs.tar.xz"
 	}

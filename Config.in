@@ -1,3 +1,3 @@
 # packages
 
-source "$BR2_EXTERNAL_MynaPlayer_PATH/packages/Config.in"
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/Config.in"

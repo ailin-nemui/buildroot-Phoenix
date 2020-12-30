@@ -2,7 +2,7 @@
 
 set -e
 
-. "${BR2_EXTERNAL_MynaPlayer_PATH}"/scripts/certs.sh
+. "${BR2_EXTERNAL_PHOENIX_PATH}"/scripts/certs.sh
 
 # lets point emergency.target to reboot.target
 
@@ -12,10 +12,10 @@ ln -sr "${TARGET_DIR}"/usr/lib/systemd/system/reboot.target \
 
 # copy changelog into the target
 
-cp "${BR2_EXTERNAL_MynaPlayer_PATH}"/changelog.md \
+cp "${BR2_EXTERNAL_PHOENIX_PATH}"/changelog.md \
 	"${TARGET_DIR}"/etc/changelog.md
 
 # grab keyring needed for rauc
 
-cp "${BR2_EXTERNAL_MynaPlayer_PATH}"/certs/keyring.pem \
+cp "${BR2_EXTERNAL_PHOENIX_PATH}"/certs/keyring.pem \
 	"${TARGET_DIR}"/etc/rauc/keyring.pem

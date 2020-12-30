@@ -1,5 +1,4 @@
-board/myna-player-odyssey/utilities/genimage.cfg
-board/myna-player-odyssey/utilities/machine-id
+board/Phoenix/utilities/genimage.cfg
 scripts/certs.sh
 easy-rsa
 certs

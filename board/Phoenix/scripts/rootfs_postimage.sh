@@ -4,8 +4,8 @@ set -e
 
 # prepare for genimage
 cd "${BINARIES_DIR}"
-export GENIMAGE_TMP=${BR2_EXTERNAL_MynaPlayer_PATH}/board/myna-player-odyssey/utilities/genimage.tmp
-GENIMAGE_CFG="${BR2_EXTERNAL_MynaPlayer_PATH}/board/myna-player-odyssey/utilities/genimage.cfg"
+export GENIMAGE_TMP=${BR2_EXTERNAL_PHOENIX_PATH}/board/Phoenix/utilities/genimage.tmp
+GENIMAGE_CFG="${BR2_EXTERNAL_PHOENIX_PATH}/board/Phoenix/utilities/genimage.cfg"
 export GENIMAGE_USER=$(whoami)
 export GENIMAGE_HOST=$(hostname)
 export GENIMAGE_BUILD_ID=$(git describe --dirty --broken)
