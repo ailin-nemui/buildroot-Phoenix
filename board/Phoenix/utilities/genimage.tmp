@@ -7,8 +7,8 @@ image overlayfs.ext4 {
 	size = 2G
 }
 
-image PHOENIX.img {
-	name = "PHOENIX-${GENIMAGE_BUILD_ID}"
+image Phoenix.img {
+	name = "Phoenix-${GENIMAGE_BUILD_ID}"
 	hdimage {
 		gpt = "true"
 	}
@@ -43,7 +43,7 @@ image PHOENIX.img {
 }
 
 image bundle-Phoenix.${GENIMAGE_BUILD_ID}.raucb {
-	name = "bundle-PHOENIX-${GENIMAGE_BUILD_ID}"
+	name = "bundle-Phoenix-${GENIMAGE_BUILD_ID}"
 	rauc {
 		files = {
 			"rootfs.tar.xz"
