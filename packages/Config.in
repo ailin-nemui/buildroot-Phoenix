@@ -15,6 +15,7 @@ source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-format-strpt
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-locale/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-timezone/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-eval-closure/Config.in"
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-exception-class/Config.in"
 
 endmenu
 
