@@ -19,6 +19,7 @@ source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-exception-class/Confi
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-mro-compat/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-namespace-autoclean/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-namespace-clean/Config.in"
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-params-validate/Config.in"
 
 endmenu
 

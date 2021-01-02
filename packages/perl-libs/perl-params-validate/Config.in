@@ -1,0 +1,11 @@
+config BR2_PACKAGE_PERL_PARAMS_VALIDATE
+	bool "perl-params-validate"
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_PERL_MODULE_IMPLEMENTATION # runtime
+	help
+	  Validate method/function parameters.
+
+	  https://metacpan.org/release/Params-Validate
+
+comment "perl-params-validate needs a toolchain w/ dynamic library"
+	depends on BR2_STATIC_LIBS
