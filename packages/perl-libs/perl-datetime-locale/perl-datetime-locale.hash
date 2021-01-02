@@ -1,0 +1,7 @@
+# retrieved by scancpan from http://cpan.metacpan.org/
+md5  6ae492b6efc110d15dd43af8862126ae  DateTime-Locale-1.28.tar.gz
+sha256  6c604d8c5c9c2739b78e0538a402283b82b1df419e60bef20b04843e4584bade  DateTime-Locale-1.28.tar.gz
+
+# computed by scancpan
+sha256  68bbca40048c38e49f1b28dc704cfa4c8624191f9cea810560c3145ce44f737b  LICENSE
+sha256  58c22b50508c6873d2dc27390b49f94daebeb9d311464ed3eb87282cda3321f5  LICENSE.cldr

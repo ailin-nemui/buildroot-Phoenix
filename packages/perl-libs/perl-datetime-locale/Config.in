@@ -1,0 +1,15 @@
+config BR2_PACKAGE_PERL_DATETIME_LOCALE
+	bool "perl-datetime-locale"
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_PERL_DIST_CHECKCONFLICTS # runtime
+	select BR2_PACKAGE_PERL_FILE_SHAREDIR # runtime
+	select BR2_PACKAGE_PERL_PARAMS_VALIDATIONCOMPILER # runtime
+	select BR2_PACKAGE_PERL_SPECIO # runtime
+	select BR2_PACKAGE_PERL_NAMESPACE_AUTOCLEAN # runtime
+	help
+	  Localization support for DateTime.pm.
+
+	  https://metacpan.org/release/DateTime-Locale
+
+comment "perl-datetime-locale needs a toolchain w/ dynamic library"
+	depends on BR2_STATIC_LIBS
