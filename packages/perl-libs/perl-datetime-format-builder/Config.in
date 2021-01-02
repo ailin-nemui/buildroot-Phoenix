@@ -1,0 +1,13 @@
+config BR2_PACKAGE_PERL_DATETIME_FORMAT_BUILDER
+	bool "perl-datetime-format-builder"
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_PERL_DATETIME # runtime
+	select BR2_PACKAGE_PERL_DATETIME_FORMAT_STRPTIME # runtime
+	select BR2_PACKAGE_PERL_PARAMS_VALIDATE # runtime
+	help
+	  Create DateTime parser classes and objects.
+
+	  https://metacpan.org/release/DateTime-Format-Builder
+
+comment "perl-datetime-format-builder needs a toolchain w/ dynamic library"
+	depends on BR2_STATIC_LIBS
