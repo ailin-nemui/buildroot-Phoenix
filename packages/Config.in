@@ -13,6 +13,8 @@ source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-format-build
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-format-iso8601/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-format-strptime/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-locale/Config.in"
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-timezone/Config.in"
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-eval-closure/Config.in"
 
 endmenu
 

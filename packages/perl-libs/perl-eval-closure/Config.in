@@ -1,0 +1,6 @@
+config BR2_PACKAGE_PERL_EVAL_CLOSURE
+	bool "perl-eval-closure"
+	help
+	  safely and cleanly create closures via string eval.
+
+	  http://metacpan.org/release/Eval-Closure
