@@ -8,6 +8,7 @@ menu "perl libraries"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-b-hooks-endofscope/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-class-data-inheritable/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-class-singleton/Config.in"
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime/Config.in"
 
 endmenu
 
