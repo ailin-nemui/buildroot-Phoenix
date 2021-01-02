@@ -11,6 +11,7 @@ source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-class-singleton/Confi
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-format-builder/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-format-iso8601/Config.in"
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-datetime-format-strptime/Config.in"
 
 endmenu
 
