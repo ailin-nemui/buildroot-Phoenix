@@ -1,0 +1,8 @@
+config BR2_PACKAGE_LIBOTR
+	bool "libotr"
+	select libgcrypt
+	select libgpg-error
+	help
+	  Off-the-record messaging library.
+
+	  https://otr.cypherpunks.ca
