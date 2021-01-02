@@ -1,4 +1,5 @@
 include $(sort $(wildcard $(BR2_EXTERNAL_PHOENIX_PATH)/packages/*/*.mk))
+include $(sort $(wildcard $(BR2_EXTERNAL_PHOENIX_PATH)/packages/perl-libs/*/*.mk))
 
 export MODULES_PLACE = $(BASE_DIR)/../kmod
 export KERNEL_PLACE = $(BASE_DIR)/../kernel
