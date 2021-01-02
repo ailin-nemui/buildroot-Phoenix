@@ -22,7 +22,7 @@ source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-namespace-clean/Confi
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-params-validate/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-params-validationcompiler/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-specio/Config.in"
-
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-sub-identify/Config.in"
 endmenu
 
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/polkit-duktape/Config.in"
