@@ -1,1 +1,2 @@
 /etc/NetworkManager/system-connections/Wired.nmconnection f 600 root root - - - - -
+/etc/sudoers f 440 root root - - - - -
