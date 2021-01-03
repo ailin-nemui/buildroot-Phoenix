@@ -1,4 +1,5 @@
 board/Phoenix/utilities/genimage.cfg
+board/Phoenix/utilities/users.table
 scripts/certs.sh
 easy-rsa
 certs
