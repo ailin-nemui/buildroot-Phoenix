@@ -2,9 +2,19 @@ This is the external Buildroot repository used to build system images and
 updates for the Phoenix project.
 
 Changelog
---------
+---------
 
 A [changelog](https://git.xogium.me/xogium/buildroot-Phoenix/blob/phoenix-stable/changelog.md) is available so that users and developers can quickly check what changed between releases.
+
+Users table
+-----------
+
+By default, the project requires you create an users table to build correctly. This was not included in the external tree, as it is considered sensitive data.
+For instructions on creating the table, please refer to [the buildroot user manual, chapter 26. Makeusers syntax documentation](https://buildroot.org/downloads/manual/manual.html#makeuser-syntax).
+
+By default the path was set to $(BR2_EXTERNAL_PHOENIX_PATH)/board/Phoenix/utilities/users.table.
+
+If you do not want an user table, or don't need one, simply modify the defconfig after renaming it, and remove the line defining it.
 
 Building
 --------
