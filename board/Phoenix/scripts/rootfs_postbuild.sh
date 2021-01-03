@@ -4,6 +4,10 @@ set -e
 
 . "${BR2_EXTERNAL_PHOENIX_PATH}"/scripts/certs.sh
 
+# creating locale config
+
+echo "LANG=en_US.UTF-8" > "${TARGET_DIR}"/etc/locale.conf
+
 # lets point emergency.target to reboot.target
 
 rm "${TARGET_DIR}"/usr/lib/systemd/system/emergency.target
