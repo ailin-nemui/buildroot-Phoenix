@@ -1,3 +1,6 @@
+Phoenix
+=======
+
 This is the external Buildroot repository used to build system images and
 updates for the Phoenix project.
 
@@ -5,6 +8,11 @@ Changelog
 ---------
 
 A [changelog](https://git.xogium.me/xogium/buildroot-Phoenix/blob/phoenix-stable/changelog.md) is available so that users and developers can quickly check what changed between releases.
+
+Sudo, and no root login
+-----------------------
+
+This project makes use of sudo for any administrative tasks the user might wish to perform. It hence disables the root account entirely, so at least one user on the system must be added in the wheel group (see below) for sudo to be usable.
 
 Users table
 -----------
