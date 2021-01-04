@@ -7,7 +7,7 @@
 	  * board/Phoenix: enable sudo and disable root login.
 	  * board/Phoenix: add default sudo configuration.
 	  * board/Phoenix: set path to users table.
-   * Language changes
+  * Language changes
 	  * board/Phoenix: set default local time to Europe/Paris.
 	  * board/Phoenix: add locale.sh snippet in profile.d.
 	  * board/Phoenix: set default system locale from the postbuild script.
