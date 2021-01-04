@@ -1,4 +1,65 @@
 
+2021-01-04 / 2021-01-04
+=======================
+
+  * Important changes
+	  * board/Phoenix: rework the MynaPlayer base to be used on Phoenix instead.
+	  * board/Phoenix: enable sudo and disable root login.
+	  * board/Phoenix: add default sudo configuration.
+	  * board/Phoenix: set path to users table.
+   * Language changes
+	  * board/Phoenix: set default local time to Europe/Paris.
+	  * board/Phoenix: add locale.sh snippet in profile.d.
+	  * board/Phoenix: set default system locale from the postbuild script.
+  * New/removed softwares in config
+	  * board/Phoenix: added gnu screen.
+	  * board/Phoenix: added irssi-git in default config.
+	  * board/Phoenix: enable systemd-analyze, hwdb installation and random seed support.
+	  * board/Phoenix: remove systemd-bootchart.
+	  * board/Phoenix: enable basic util-linux set of utilities.
+  * README
+	  * Merge pull request #33 from LuminaSensum/WIP_EASYRSA
+		  * README: Fix easyrsa instructions
+	  * README: mention sudo/no root login.
+	  * README: added notes about the users table.
+	  * README: fix url to changelog.
+  * Kernel changes
+	  * board/Phoenix: bump kernel to 5.10.4.
+	  * board/Phoenix: remove unneeded kernel patches.
+	  * board/Phoenix: add a patch to provide thermal support in device tree.
+	  * board/Phoenix: minor tweaks to kernel configuration.
+  * Packages
+	  * board/Phoenix: added perl-libs subdirectory in external.mk.
+	  * packages/irssi-git: new package.
+	  * packages/libotr: new package.
+	  * package/lifepo4wered-pi: remove package.
+	  * packages/perl-sub-identify: new package.
+	  * packages/perl-specio: new package.
+	  * packages/perl-params-validate: new package.
+	  * packages/perl-namespace-clean: new package.
+	  * packages/perl-namespace-autoclean: new package.
+	  * packages/perl-mro-compat: new package.
+	  * packages/perl-exception-class: new package.
+	  * packages/perl-eval-closure: new package.
+	  * packages/perl-datetime-locale: new package.
+	  * packages/perl-datetime-format-strptime: new package.
+	  * packages/perl-datetime-format-iso8601: new package.
+	  * packages/perl-datetime-format-builder: new package.
+	  * packages/perl-datetime: new package.
+	  * packages/perl-class-singleton: new package.
+	  * packages/perl-class-data-inheritable: new package.
+	  * packages/perl-b-hooks-endofscope: new package.
+  * Misc
+	  * board/Phoenix: fix capitalisation in genimage config.
+	  * board/Phoenix: fix capitalisation in hostname and banner.
+	  * board/Phoenix: fix rauc compatible string.
+	  * board/Phoenix: add dt-utils patch to change lock file directory.
+	  * board/MynaPlayer odyssey: remove rauc partition from genimage, and reworked the overlay filesystem creation.
+	  * board/MynaPlayer odyssey: bump barebox version to 2020.12.0.
+	  * board/MynaPlayer odyssey: remove defined partition types in genimage template.
+	  * board/MynaPlayer odyssey: disable trace-cmd package since it broke.
+	  * board/MynaPlayer odyssey: bump toolchain from bootlin to latest bleeding edge 2020.08-1.
+
 2020-09-22 / 2020-09-22
 =======================
 
