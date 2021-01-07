@@ -28,5 +28,6 @@ source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-sub-identify/Config.i
 endmenu
 
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/polkit-duktape/Config.in"
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/rtl8821cu/Config.in"
 
 endmenu
