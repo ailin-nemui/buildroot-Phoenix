@@ -1,0 +1,41 @@
+From 73722a8b3ddb85a81b304c389f1b9a1f68223dee Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Thu, 7 Jan 2021 13:44:18 -0500
+Subject: [PATCH 1/4] stm32mp157c-odyssey: create regulators needed for usb
+ ports.
+
+The two regulators created in this patches set gpioh 13 and gpiof 8 to high, respectively. This should enable power for the usb ports.
+---
+ arch/arm/boot/dts/stm32mp157c-odyssey.dts | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/arch/arm/boot/dts/stm32mp157c-odyssey.dts b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+index f9128b104ae9..73da983bd76a 100644
+--- a/arch/arm/boot/dts/stm32mp157c-odyssey.dts
++++ b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+@@ -29,6 +29,22 @@ wifi_pwrseq: wifi-pwrseq {
+ 		reset-gpios = <&gpiod 9 GPIO_ACTIVE_LOW>;
+ 		post-power-on-delay-ms = <1>;
+ 	};
++
++	usb1vbus: fixed-regulator-usb1vbus {
++		compatible = "regulator-fixed";
++		regulator-name = "host_usb1_vbus";
++		gpios = <&gpioh 13 0>; // USB1_EN
++		enable-active-high;
++		regulator-always-on;
++	};
++
++	usb2vbus: fixed-regulator-usb2vbus {
++		compatible = "regulator-fixed";
++		regulator-name = "host_usb2_vbus";
++		gpios = <&gpiof 8 0>; // USB2_EN
++		enable-active-high;
++		regulator-always-on;
++	};
+ };
+ 
+ &ethernet0 {
+-- 
+2.29.2
+

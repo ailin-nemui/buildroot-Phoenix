@@ -1,0 +1,59 @@
+From d169a926726cf0a6aef2ce8c594224899629b7c8 Mon Sep 17 00:00:00 2001
+From: Jookia <contact@jookia.org>
+Date: Wed, 12 Aug 2020 00:19:06 +1000
+Subject: [PATCH 2/9] stm32mp157c-odyssey: Add i2c4 support
+
+---
+ arch/arm/boot/dts/stm32mp15-pinctrl.dtsi  | 17 +++++++++++++++++
+ arch/arm/boot/dts/stm32mp157c-odyssey.dts | 10 ++++++++++
+ 2 files changed, 27 insertions(+)
+
+diff --git a/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi b/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi
+index d84686e00370..b2329d29a2dc 100644
+--- a/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi
++++ b/arch/arm/boot/dts/stm32mp15-pinctrl.dtsi
+@@ -432,6 +432,23 @@ pins {
+ 		};
+ 	};
+ 
++	i2c4_pins_s: i2c4-0 {
++		pins {
++			pinmux = <STM32_PINMUX('B',  8, AF6)>, /* I2C4_SCL */
++				 <STM32_PINMUX('H', 12, AF4)>; /* I2C4_SDA */
++			bias-disable;
++			drive-open-drain;
++			slew-rate = <0>;
++		};
++	};
++
++	i2c4_pins_sleep_s: i2c4-1 {
++		pins {
++			pinmux = <STM32_PINMUX('B',  8, ANALOG)>, /* I2C4_SCL */
++				 <STM32_PINMUX('H', 12, ANALOG)>; /* I2C4_SDA */
++		};
++	};
++
+ 	i2c5_pins_a: i2c5-0 {
+ 		pins {
+ 			pinmux = <STM32_PINMUX('A', 11, AF4)>, /* I2C5_SCL */
+diff --git a/arch/arm/boot/dts/stm32mp157c-odyssey.dts b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+index 027aaa441e4f..f9861e8fdb3a 100644
+--- a/arch/arm/boot/dts/stm32mp157c-odyssey.dts
++++ b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+@@ -78,3 +78,13 @@ &uart4 {
+ 	status = "okay";
+ };
+ 
++&i2c4 {
++	pinctrl-names = "default", "sleep";
++	pinctrl-0 = <&i2c4_pins_s>;
++	pinctrl-1 = <&i2c4_pins_sleep_s>;
++	i2c-scl-rising-time-ns = <185>;
++	i2c-scl-falling-time-ns = <20>;
++	status = "okay";
++	/delete-property/dmas;
++	/delete-property/dma-names;
++};
+-- 
+2.29.2
+

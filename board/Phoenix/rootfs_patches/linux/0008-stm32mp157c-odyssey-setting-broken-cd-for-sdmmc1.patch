@@ -1,0 +1,24 @@
+From ea57a5eb3ff4274c7661f878f6131e4d793365a7 Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Fri, 8 Jan 2021 11:10:35 -0500
+Subject: [PATCH 8/9] stm32mp157c-odyssey: setting broken-cd for sdmmc1.
+
+---
+ arch/arm/boot/dts/stm32mp157c-odyssey.dts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/boot/dts/stm32mp157c-odyssey.dts b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+index 85ea8c040ae0..3bd92ca1ae03 100644
+--- a/arch/arm/boot/dts/stm32mp157c-odyssey.dts
++++ b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+@@ -91,6 +91,7 @@ &sdmmc1 {
+ 	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a>;
+ 	cd-gpios = <&gpiob 7 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+ 	disable-wp;
++	broken-cd;
+ 	st,neg-edge;
+ 	bus-width = <4>;
+ 	vmmc-supply = <&v3v3>;
+-- 
+2.29.2
+

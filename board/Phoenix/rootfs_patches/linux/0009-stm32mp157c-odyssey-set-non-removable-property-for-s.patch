@@ -1,0 +1,25 @@
+From 719fd81b93fca954f6f7b0a2933e88d65e5d8408 Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Fri, 8 Jan 2021 11:50:07 -0500
+Subject: [PATCH 9/9] stm32mp157c-odyssey: set non-removable property for
+ sdmmc1.
+
+---
+ arch/arm/boot/dts/stm32mp157c-odyssey.dts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/boot/dts/stm32mp157c-odyssey.dts b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+index 3bd92ca1ae03..927a8332bd15 100644
+--- a/arch/arm/boot/dts/stm32mp157c-odyssey.dts
++++ b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+@@ -92,6 +92,7 @@ &sdmmc1 {
+ 	cd-gpios = <&gpiob 7 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+ 	disable-wp;
+ 	broken-cd;
++	non-removable;
+ 	st,neg-edge;
+ 	bus-width = <4>;
+ 	vmmc-supply = <&v3v3>;
+-- 
+2.29.2
+

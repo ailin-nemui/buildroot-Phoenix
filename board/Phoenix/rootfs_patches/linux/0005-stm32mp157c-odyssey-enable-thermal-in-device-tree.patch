@@ -1,0 +1,24 @@
+From 7f517f62d66ebe260f5010ddf10582f1ff67e794 Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Fri, 1 Jan 2021 19:12:19 -0500
+Subject: [PATCH 5/9] stm32mp157c-odyssey: enable thermal in device tree.
+
+---
+ arch/arm/boot/dts/stm32mp157c-odyssey.dts | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm/boot/dts/stm32mp157c-odyssey.dts b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+index c498d51c72ba..f9128b104ae9 100644
+--- a/arch/arm/boot/dts/stm32mp157c-odyssey.dts
++++ b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+@@ -116,3 +116,7 @@ &i2c4 {
+ 	/delete-property/dmas;
+ 	/delete-property/dma-names;
+ };
++
++&dts {
++	status = "okay";
++};
+-- 
+2.29.2
+
