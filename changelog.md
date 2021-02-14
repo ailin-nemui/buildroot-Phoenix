@@ -1,4 +1,39 @@
 
+2021-02-14 / 2021-02-14
+=======================
+* Important changes:
+	* Migrate to a 2x boot/2x rootfs setup. Boot partitions are using ext4, rootfs are using erofs.
+		  * board/Phoenix: migrate rauc configuration to erofs and kernel in ext4.
+		  * board/Phoenix: fix pre-init script, overlayfs partition is now p5.
+		  * board/Phoenix: migrate genimage to erofs for rootfs and ext4 for kernel.
+		  * board/Phoenix: remove older boot spec from the rootfs.
+		  * board/Phoenix: add new boot specs.
+		  * board/Phoenix: create tarball and ext4 filesystem containing kernel, device tree and bootspecs files.
+		  * board/Phoenix: create erofs filesystem for rootfs.
+		  * board/Phoenix: remove kernel files from /boot.
+		  * board/Phoenix: remove ext4 rootfs creation.
+		  * board/Phoenix: enable erofs filesystem in kernel.
+		  * board/Phoenix: prepare barebox environment to deal with separate boot and rootfs partitions.
+		  * board/Phoenix: rename system0.boot and system1.boot in barebox environment to system0 and system1.
+  * board/Phoenix: select xz as kernel modules compression.
+  * board/Phoenix: make host-kmod support xz-compressed modules.
+  * board/Phoenix: compress kernel using zstd.
+  * board/Phoenix: select micropython and micropython-libs.
+  * board/Phoenix: some more kernel configuration clean ups and tweaks.
+  * board/Phoenix: modify PAM configuration to support reading a motd.
+  * board/Phoenix: tweak usb subsystem.
+  * board/Phoenix: reintroduce kernel patches with standard naming.
+  * board/Phoenix: clean up kernel patches.
+  * board/Phoenix: clean up kernel config.
+  * board/Phoenix: select rtl8821cu package.
+  * packages/rtl8821cu: new package.
+  * board/Phoenix: added PAM support for gnu screen (allows locking).
+  * board/Phoenix: copy the gconv set of charsets to the target.
+  * board/Phoenix: tweak pre-init script.
+  * packages/perl-datetime-timezone: new package.
+  * packages/perl-params-validationcompiler: new package.
+  * Changelog: fix formatting.
+
 2021-01-04 / 2021-01-04
 =======================
 
