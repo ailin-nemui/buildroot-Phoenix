@@ -1,0 +1,4 @@
+#!/bin/sh
+
+global.bootm.root_dev="/dev/mmc1.4"
+boot mmc1.2
