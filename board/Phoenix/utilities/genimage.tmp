@@ -20,21 +20,27 @@ image Phoenix.img {
 		in-partition-table = "no"
 	}
 
-	partition barebox-environment {
-		size = 64K
-		image = "/dev/null"
-	}
-
 	partition ssbl {
 		image = "barebox.bin"
 	}
+	partition PrimaryBoot {
+		image = "kernel.ext4"
+		size = 8M
+	}
+
+	partition SecondaryBoot {
+		image = "kernel.ext4"
+		size = 8M
+	}
 
 	partition PrimaryRootfs {
-		image = "rootfs.ext4"
+		image = "rootfs.erofs"
+		size = 128M
 	}
 
 	partition SecondaryRootfs {
-		image = "rootfs.ext4"
+		image = "rootfs.erofs"
+		size = 128M
 	}
 
 	partition overlayfs {
@@ -46,7 +52,8 @@ image bundle-Phoenix.${GENIMAGE_BUILD_ID}.raucb {
 	name = "bundle-Phoenix-${GENIMAGE_BUILD_ID}"
 	rauc {
 		files = {
-			"rootfs.tar.xz"
+			"kernel.tar.xz",
+			"rootfs.erofs"
 		}
 		key = "${BR2_EXTERNAL_PHOENIX_PATH}/certs/signing.key"
 		cert = "${BR2_EXTERNAL_PHOENIX_PATH}/certs/signing.crt"
@@ -56,7 +63,9 @@ image bundle-Phoenix.${GENIMAGE_BUILD_ID}.raucb {
 			compatible=Phoenix
 			version=${GENIMAGE_BUILD_ID}
 			description=RAUC bundle for Phoenix version ${GENIMAGE_BUILD_ID}, built by ${GENIMAGE_USER}@${GENIMAGE_HOST}.
+			[image.kernel]
+			filename=kernel.tar.xz
 			[image.rootfs]
-			filename=rootfs.tar.xz"
+			filename=rootfs.erofs"
 	}
 }
