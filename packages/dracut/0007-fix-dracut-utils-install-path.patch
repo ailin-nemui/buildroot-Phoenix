@@ -1,0 +1,29 @@
+From 6642985c7e045913a1696d3500706508e13cf759 Mon Sep 17 00:00:00 2001
+From: Adam Duskett <aduskett@gmail.com>
+Date: Mon, 14 Jun 2021 17:35:37 -0700
+Subject: [PATCH] fix dracut-utils install path
+
+Remove the first ${dracutsysrootdir} as it leads to a double path when
+installing.
+
+Signed-off-by: Adam Duskett <aduskett@gmail.com>
+---
+ modules.d/99base/module-setup.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/modules.d/99base/module-setup.sh b/modules.d/99base/module-setup.sh
+index 07c33ee..3c960ff 100755
+--- a/modules.d/99base/module-setup.sh
++++ b/modules.d/99base/module-setup.sh
+@@ -19,7 +19,7 @@ install() {
+ 
+     inst_multiple -o findmnt less kmod
+ 
+-    inst_binary "${dracutsysrootdir}${dracutbasedir}/dracut-util" "/usr/bin/dracut-util"
++    inst_binary "${dracutbasedir}/dracut-util" "/usr/bin/dracut-util"
+ 
+     ln -s dracut-util "${initdir}/usr/bin/dracut-getarg"
+     ln -s dracut-util "${initdir}/usr/bin/dracut-getargs"
+-- 
+2.31.1
+

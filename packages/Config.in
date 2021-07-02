@@ -1,6 +1,7 @@
 menu "Target packages"
 
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/disabled-services/Config.in"
+source "$BR2_EXTERNAL_PHOENIX_PATH/packages/dracut/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/duktape-pc/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/irssi-git/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/libotr/Config.in"
