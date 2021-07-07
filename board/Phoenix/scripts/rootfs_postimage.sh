@@ -19,7 +19,7 @@ tar -cJf \
 
 # create a filesystem for the initial image containing them
 
-fallocate -l 8m \
+fallocate -l 16m \
 	"${BINARIES_DIR}"/kernel.ext4
 mkfs.ext4 -Fd \
 	"${BINARIES_DIR}"/kernel \
