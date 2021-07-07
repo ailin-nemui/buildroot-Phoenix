@@ -1,0 +1,26 @@
+From f9eae6e82a4173c4919789915419be4645ed1413 Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Sat, 2 Jan 2021 12:08:05 -0500
+Subject: [PATCH] package/perl: specifically remove the header files from the
+ target.
+
+---
+ package/perl/perl.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/package/perl/perl.mk b/package/perl/perl.mk
+index 2f82e1d6d5..4621214375 100644
+--- a/package/perl/perl.mk
++++ b/package/perl/perl.mk
+@@ -112,7 +112,7 @@ $(eval $(host-generic-package))
+ 
+ define PERL_FINALIZE_TARGET
+ 	rm -rf $(TARGET_DIR)/usr/lib/perl5/$(PERL_VERSION)/pod
+-	rm -rf $(TARGET_DIR)/usr/lib/perl5/$(PERL_VERSION)/$(PERL_ARCHNAME)/CORE
++	rm -rf $(TARGET_DIR)/usr/lib/perl5/$(PERL_VERSION)/$(PERL_ARCHNAME)/CORE/*.h
+ 	find $(TARGET_DIR)/usr/lib/perl5/ -name 'extralibs.ld' -print0 | xargs -0 rm -f
+ 	find $(TARGET_DIR)/usr/lib/perl5/ -name '*.bs' -print0 | xargs -0 rm -f
+ 	find $(TARGET_DIR)/usr/lib/perl5/ -name '.packlist' -print0 | xargs -0 rm -f
+-- 
+2.29.2
+

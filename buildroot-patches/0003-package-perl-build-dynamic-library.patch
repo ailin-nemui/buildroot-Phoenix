@@ -1,0 +1,24 @@
+From 59af4b1cf94134b12a839d59bd06584696a9ba78 Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Wed, 10 Mar 2021 14:51:51 -0500
+Subject: [PATCH] package/perl: build dynamic library.
+
+---
+ package/perl/perl.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/package/perl/perl.mk b/package/perl/perl.mk
+index 0ff288db0e..37dbfe2057 100644
+--- a/package/perl/perl.mk
++++ b/package/perl/perl.mk
+@@ -49,6 +49,7 @@ PERL_CONF_OPTS = \
+ 	--target=$(GNU_TARGET_NAME) \
+ 	--target-tools-prefix=$(TARGET_CROSS) \
+ 	--prefix=/usr \
++	-Duseshrplib \
+ 	-Dld="$(TARGET_CC)" \
+ 	-Dccflags="$(TARGET_CFLAGS)" \
+ 	-Dldflags="$(TARGET_LDFLAGS) -lm $(TARGET_NLS_LIBS)" \
+-- 
+2.30.1
+

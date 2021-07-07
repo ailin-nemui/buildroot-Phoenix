@@ -1,0 +1,26 @@
+From 94c62fa941e120f7b542c18a109d7b9e7cf292c5 Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Mon, 14 Dec 2020 03:26:56 -0500
+Subject: [PATCH 2/3] package/perl: set proper path in staging files to allow
+ linking.
+
+---
+ package/perl/perl.mk | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/package/perl/perl.mk b/package/perl/perl.mk
+index ff63fa14c8..f0822bb726 100644
+--- a/package/perl/perl.mk
++++ b/package/perl/perl.mk
+@@ -84,6 +84,8 @@ endef
+ 
+ define PERL_INSTALL_STAGING_CMDS
+ 	$(TARGET_MAKE_ENV) $(MAKE1) -C $(@D) DESTDIR="$(STAGING_DIR)" install.perl install.sym
++	$(SED) 's_/usr/lib/perl5_$(STAGING_DIR)/usr/lib/perl5_g' -i $(STAGING_DIR)/usr/lib/perl5/$(PERL_VERSION)/$(PERL_ARCHNAME)/Config.pm
++	$(SED) "s_^\(ccdlflags=.*\)._\1 -Wl,-rpath,/usr/lib/perl5/$(PERL_VERSION)/$(PERL_ARCHNAME)/CORE'_g" -i $(STAGING_DIR)/usr/lib/perl5/$(PERL_VERSION)/$(PERL_ARCHNAME)/Config_heavy.pl
+ endef
+ 
+ define PERL_INSTALL_TARGET_CMDS
+-- 
+2.29.2
+

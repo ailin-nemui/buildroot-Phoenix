@@ -1,0 +1,25 @@
+From 6b1dcea8499047cef53f2a05b418a4411f777d2b Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Mon, 14 Dec 2020 03:38:42 -0500
+Subject: [PATCH] package/perl: install miniperl in staging.
+
+---
+ package/perl/perl.mk | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/package/perl/perl.mk b/package/perl/perl.mk
+index f0822bb726..a5629d50f3 100644
+--- a/package/perl/perl.mk
++++ b/package/perl/perl.mk
+@@ -84,6 +84,8 @@ endef
+ 
+ define PERL_INSTALL_STAGING_CMDS
+ 	$(TARGET_MAKE_ENV) $(MAKE1) -C $(@D) DESTDIR="$(STAGING_DIR)" install.perl install.sym
++	$(INSTALL) -D -m 0755 $(@D)/miniperl \
++		$(STAGING_DIR)/usr/bin/miniperl
+ 	$(SED) 's_/usr/lib/perl5_$(STAGING_DIR)/usr/lib/perl5_g' -i $(STAGING_DIR)/usr/lib/perl5/$(PERL_VERSION)/$(PERL_ARCHNAME)/Config.pm
+ 	$(SED) "s_^\(ccdlflags=.*\)._\1 -Wl,-rpath,/usr/lib/perl5/$(PERL_VERSION)/$(PERL_ARCHNAME)/CORE'_g" -i $(STAGING_DIR)/usr/lib/perl5/$(PERL_VERSION)/$(PERL_ARCHNAME)/Config_heavy.pl
+ endef
+-- 
+2.29.2
+
