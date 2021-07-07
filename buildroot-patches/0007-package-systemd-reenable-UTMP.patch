@@ -1,0 +1,27 @@
+From 1f262c8541d79383b8175fec5aa91eec0fdfa1e7 Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Sun, 3 Jan 2021 14:54:56 -0500
+Subject: [PATCH] package/systemd: reenable UTMP.
+
+This just doesn't make sense when your system tells you noone is logged in. Spying reason are no excuse to disable this, as masking the activity of users, even their log in could let them perform malicious actions unchecked. Lets revert this.
+---
+ package/systemd/systemd.mk | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/package/systemd/systemd.mk b/package/systemd/systemd.mk
+index cb12f667d6..c9c929e849 100644
+--- a/package/systemd/systemd.mk
++++ b/package/systemd/systemd.mk
+@@ -47,8 +47,7 @@ SYSTEMD_CONF_OPTS += \
+ 	-Dsysvrcnd-path= \
+ 	-Dtelinit-path= \
+ 	-Dtests=false \
+-	-Dumount-path=/usr/bin/umount \
+-	-Dutmp=false
++	-Dumount-path=/usr/bin/umount
+ 
+ ifeq ($(BR2_PACKAGE_ACL),y)
+ SYSTEMD_DEPENDENCIES += acl
+-- 
+2.29.2
+
