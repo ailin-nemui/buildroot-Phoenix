@@ -1,0 +1,24 @@
+From b1f5fe3a8f1fb9bc640d1d77f5e3efe034e2e5ba Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Wed, 3 Mar 2021 05:07:34 -0500
+Subject: [PATCH] update_handler: added erofs support to the raw handler.
+
+---
+ src/update_handler.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/update_handler.c b/src/update_handler.c
+index ebadd97..65dcebf 100644
+--- a/src/update_handler.c
++++ b/src/update_handler.c
+@@ -1798,6 +1798,7 @@ RaucUpdatePair updatepairs[] = {
+ 	{"*.caidx", "ext4", archive_to_ext4_handler},
+ 	{"*.caidx", "ubifs", archive_to_ubifs_handler},
+ 	{"*.caidx", "vfat", archive_to_vfat_handler},
++	{"*.erofs", "raw", img_to_raw_handler},
+ 	{"*.ext4", "ext4", img_to_fs_handler},
+ 	{"*.ext4", "raw", img_to_raw_handler},
+ 	{"*.vfat", "raw", img_to_raw_handler},
+-- 
+2.30.1
+
