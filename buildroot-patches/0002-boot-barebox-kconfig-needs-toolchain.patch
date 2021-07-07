@@ -1,0 +1,136 @@
+From patchwork Tue Dec  8 10:11:07 2020
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: Jules Maselbas <jmaselbas@kalray.eu>
+X-Patchwork-Id: 1412602
+Return-Path: <buildroot-bounces@busybox.net>
+X-Original-To: incoming-buildroot@patchwork.ozlabs.org
+Delivered-To: patchwork-incoming-buildroot@bilbo.ozlabs.org
+Authentication-Results: ozlabs.org;
+ spf=pass (sender SPF authorized) smtp.mailfrom=busybox.net
+ (client-ip=140.211.166.136; helo=silver.osuosl.org;
+ envelope-from=buildroot-bounces@busybox.net; receiver=<UNKNOWN>)
+Authentication-Results: ozlabs.org;
+ dmarc=none (p=none dis=none) header.from=busybox.net
+Authentication-Results: ozlabs.org;
+	dkim=fail reason="signature verification failed" (1024-bit key;
+ unprotected) header.d=kalray.eu header.i=@kalray.eu header.a=rsa-sha256
+ header.s=32AE1B44-9502-11E5-BA35-3734643DEF29 header.b=W7d3fS8M;
+	dkim-atps=neutral
+Received: from silver.osuosl.org (smtp3.osuosl.org [140.211.166.136])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by ozlabs.org (Postfix) with ESMTPS id 4Cqx5v6VHRz9sWL
+	for <incoming-buildroot@patchwork.ozlabs.org>;
+ Tue,  8 Dec 2020 21:20:51 +1100 (AEDT)
+Received: from localhost (localhost [127.0.0.1])
+	by silver.osuosl.org (Postfix) with ESMTP id 5FED620462;
+	Tue,  8 Dec 2020 10:20:48 +0000 (UTC)
+X-Virus-Scanned: amavisd-new at osuosl.org
+Received: from silver.osuosl.org ([127.0.0.1])
+	by localhost (.osuosl.org [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id JE79Iqpfcg9t; Tue,  8 Dec 2020 10:20:46 +0000 (UTC)
+Received: from ash.osuosl.org (ash.osuosl.org [140.211.166.34])
+	by silver.osuosl.org (Postfix) with ESMTP id 1C1F52042B;
+	Tue,  8 Dec 2020 10:20:46 +0000 (UTC)
+X-Original-To: buildroot@lists.busybox.net
+Delivered-To: buildroot@osuosl.org
+Received: from whitealder.osuosl.org (smtp1.osuosl.org [140.211.166.138])
+ by ash.osuosl.org (Postfix) with ESMTP id 2203E1BF83A
+ for <buildroot@lists.busybox.net>; Tue,  8 Dec 2020 10:20:44 +0000 (UTC)
+Received: from localhost (localhost [127.0.0.1])
+ by whitealder.osuosl.org (Postfix) with ESMTP id 1B21187112
+ for <buildroot@lists.busybox.net>; Tue,  8 Dec 2020 10:20:44 +0000 (UTC)
+X-Virus-Scanned: amavisd-new at osuosl.org
+Received: from whitealder.osuosl.org ([127.0.0.1])
+ by localhost (.osuosl.org [127.0.0.1]) (amavisd-new, port 10024)
+ with ESMTP id 7YCZ0hshzhHA for <buildroot@lists.busybox.net>;
+ Tue,  8 Dec 2020 10:20:43 +0000 (UTC)
+X-Greylist: delayed 00:09:14 by SQLgrey-1.7.6
+Received: from mib.mailinblack.com (mib.mailinblack.com [137.74.84.110])
+ by whitealder.osuosl.org (Postfix) with ESMTPS id 1BE0F87135
+ for <buildroot@buildroot.org>; Tue,  8 Dec 2020 10:20:43 +0000 (UTC)
+Received: from localhost (localhost [127.0.0.1])
+ by mib.mailinblack.com (Postfix) with ESMTP id 5CE781A3E5A
+ for <buildroot@buildroot.org>; Tue,  8 Dec 2020 10:11:27 +0000 (UTC)
+Received: from mib.mailinblack.com (localhost [127.0.0.1])
+ by mib.mailinblack.com with SMTP (Mib Daemon ) id KIFTQ6PX
+ for buildroot@buildroot.org; Tue, 08 Dec 2020 10:11:27 +0000 (UTC)
+Received: from zimbra2.kalray.eu (zimbra2.kalray.eu [92.103.151.219])
+ by mib.mailinblack.com (Postfix) with ESMTPS id 3280F1A3E59
+ for <buildroot@buildroot.org>; Tue,  8 Dec 2020 10:11:27 +0000 (UTC)
+Received: from localhost (localhost [127.0.0.1])
+ by zimbra2.kalray.eu (Postfix) with ESMTP id 0A3A127E0350
+ for <buildroot@buildroot.org>; Tue,  8 Dec 2020 11:11:27 +0100 (CET)
+Received: from zimbra2.kalray.eu ([127.0.0.1])
+ by localhost (zimbra2.kalray.eu [127.0.0.1]) (amavisd-new, port 10032)
+ with ESMTP id 2rIe8_WPuUQa; Tue,  8 Dec 2020 11:11:26 +0100 (CET)
+Received: from localhost (localhost [127.0.0.1])
+ by zimbra2.kalray.eu (Postfix) with ESMTP id 5FBA527E043E;
+ Tue,  8 Dec 2020 11:11:26 +0100 (CET)
+DKIM-Filter: OpenDKIM Filter v2.10.3 zimbra2.kalray.eu 5FBA527E043E
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kalray.eu;
+ s=32AE1B44-9502-11E5-BA35-3734643DEF29; t=1607422286;
+ bh=W2FH30ck5aVDyQZ3q6iqS5p9Z3eCOIE0ZKeyjhrhDmM=;
+ h=From:To:Date:Message-Id;
+ b=W7d3fS8MpW0XYvXFWV+96aYnlVtXmUEZQaM2Vq2aDTYT3C8b3uDMOMW3KE4/XQHJj
+ EsqOsIINI00vjSj+x+NJ0Rl8JYdLe/1Y1BPBJKF2l8G8934LpQyBZKKY3Ty0coXjhi
+ 95+NRZSCgLFyp37gvDqNxsHEO3ae9UD+pdcwOCNE=
+X-Virus-Scanned: amavisd-new at zimbra2.kalray.eu
+Received: from zimbra2.kalray.eu ([127.0.0.1])
+ by localhost (zimbra2.kalray.eu [127.0.0.1]) (amavisd-new, port 10026)
+ with ESMTP id BNQMtTI0u1HR; Tue,  8 Dec 2020 11:11:26 +0100 (CET)
+Received: from tellis.lin.mbt.kalray.eu (unknown [192.168.36.206])
+ by zimbra2.kalray.eu (Postfix) with ESMTPSA id 43C9727E0350;
+ Tue,  8 Dec 2020 11:11:26 +0100 (CET)
+To: buildroot@buildroot.org
+Date: Tue,  8 Dec 2020 11:11:07 +0100
+Message-Id: <20201208101107.32758-1-jmaselbas@kalray.eu>
+X-Mailer: git-send-email 2.17.1
+Subject: [Buildroot] [PATCH] boot/barebox: kconfig needs the toolchain
+X-BeenThere: buildroot@busybox.net
+X-Mailman-Version: 2.1.29
+Precedence: list
+List-Id: Discussion and development of buildroot <buildroot.busybox.net>
+List-Unsubscribe: <http://lists.busybox.net/mailman/options/buildroot>,
+ <mailto:buildroot-request@busybox.net?subject=unsubscribe>
+List-Archive: <http://lists.busybox.net/pipermail/buildroot/>
+List-Post: <mailto:buildroot@busybox.net>
+List-Help: <mailto:buildroot-request@busybox.net?subject=help>
+List-Subscribe: <http://lists.busybox.net/mailman/listinfo/buildroot>,
+ <mailto:buildroot-request@busybox.net?subject=subscribe>
+X-Patchwork-Original-From: Jules Maselbas via buildroot
+ <buildroot@busybox.net>
+From: Jules Maselbas <jmaselbas@kalray.eu>
+Reply-To: Jules Maselbas <jmaselbas@kalray.eu>
+Cc: Yann Sionneau <ysionneau@kalray.eu>, Jules Maselbas <jmaselbas@kalray.eu>
+MIME-Version: 1.0
+Errors-To: buildroot-bounces@busybox.net
+Sender: "buildroot" <buildroot-bounces@busybox.net>
+
+In barebox v2020.09.0, kconfig has been updated to a newer version
+based on Linux 5.9-rc2.  As in linux, kconfig can call the compiler
+to test its capabilities.
+
+Signed-off-by: Jules Maselbas <jmaselbas@kalray.eu>
+---
+ boot/barebox/barebox.mk | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/boot/barebox/barebox.mk b/boot/barebox/barebox.mk
+index 422f27312d..2e80954741 100644
+--- a/boot/barebox/barebox.mk
++++ b/boot/barebox/barebox.mk
+@@ -88,6 +88,11 @@ $(1)_KCONFIG_DEPENDENCIES = \
+ 	$(BR2_BISON_HOST_DEPENDENCY) \
+ 	$(BR2_FLEX_HOST_DEPENDENCY)
+ 
++# Starting with barebox v2020.09.0, the kconfig used calls the
++# cross-compiler to check its capabilities. So we need the
++# toolchain before we can call the configurators.
++$(1)_KCONFIG_DEPENDENCIES += toolchain
++
+ ifeq ($$(BR2_TARGET_$(1)_BAREBOXENV),y)
+ define $(1)_BUILD_BAREBOXENV_CMDS
+ 	$$(TARGET_CC) $$(TARGET_CFLAGS) $$(TARGET_LDFLAGS) -o $$(@D)/bareboxenv \
