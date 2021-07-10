@@ -2,11 +2,12 @@
 
 set -e
 
-# copy boot specs, kernel and device tree to a well known location
+# copy boot specs, initramfs, kernel and device tree to a well known location
 
 mkdir -p "${BINARIES_DIR}"/kernel
 cp -ar \
 	"${BR2_EXTERNAL_PHOENIX_PATH}"/board/Phoenix/utilities/bootspecs/loader \
+	"${BINARIES_DIR}"/rootfs.cpio \
 	"${BINARIES_DIR}"/stm32mp157c-odyssey.dtb \
 	"${BINARIES_DIR}"/zImage \
 	"${BINARIES_DIR}"/kernel
@@ -19,7 +20,7 @@ tar -cJf \
 
 # create a filesystem for the initial image containing them
 
-fallocate -l 16m \
+fallocate -l 32m \
 	"${BINARIES_DIR}"/kernel.ext4
 mkfs.ext4 -Fd \
 	"${BINARIES_DIR}"/kernel \
