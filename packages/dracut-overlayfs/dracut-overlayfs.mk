@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-DRACUT_OVERLAYFS_VERSION = 2021-07-02
+DRACUT_OVERLAYFS_VERSION = 2021-07-22
 DRACUT_OVERLAYFS_SITE = https://git.lumina-sensum.com/LuminaSensum/dracut-overlayfs/archive
 DRACUT_OVERLAYFS_SOURCE = $(DRACUT_OVERLAYFS_VERSION).tar.gz
 DRACUT_OVERLAYFS_LICENSE = GPL-2.0
