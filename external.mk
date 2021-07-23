@@ -1,3 +1,4 @@
+include $(sort $(wildcard $(BR2_EXTERNAL_PHOENIX_PATH)/fs/*/*.mk))
 include $(sort $(wildcard $(BR2_EXTERNAL_PHOENIX_PATH)/packages/*/*.mk))
 include $(sort $(wildcard $(BR2_EXTERNAL_PHOENIX_PATH)/packages/perl-libs/*/*.mk))
 

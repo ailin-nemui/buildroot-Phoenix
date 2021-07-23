@@ -4,7 +4,7 @@ image overlayfs.ext4 {
 		label = "overlayfs"
 	}
 	empty = "true"
-	size = 2G
+	size = 3028M
 }
 
 image Phoenix.img {
@@ -22,25 +22,27 @@ image Phoenix.img {
 
 	partition ssbl {
 		image = "barebox.bin"
+size = 1M
 	}
+
 	partition PrimaryBoot {
 		image = "kernel.ext4"
-		size = 8M
+		size = 32M
 	}
 
 	partition SecondaryBoot {
 		image = "kernel.ext4"
-		size = 8M
+		size = 32M
 	}
 
 	partition PrimaryRootfs {
 		image = "rootfs.erofs"
-		size = 128M
+		size = 256M
 	}
 
 	partition SecondaryRootfs {
 		image = "rootfs.erofs"
-		size = 128M
+		size = 256M
 	}
 
 	partition overlayfs {

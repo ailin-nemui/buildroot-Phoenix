@@ -1,0 +1,8 @@
+config BR2_PACKAGE_BOOTSLOT_MOUNTS
+	bool "bootslot-mounts"
+	depends on BR2_INIT_SYSTEMD
+	help
+	  Dynamically generates mountpoints based on the
+	  active RAUC bootslot
+
+	  https://github.com/KopisMobile/bootslot-mounts

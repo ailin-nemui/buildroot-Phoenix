@@ -1,0 +1,5 @@
+menu "Filesystem images"
+
+source "$BR2_EXTERNAL_PHOENIX_PATH/fs/dracut/Config.in"
+
+endmenu

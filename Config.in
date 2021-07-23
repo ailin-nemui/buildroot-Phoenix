@@ -1,3 +1,7 @@
+# filesystem images
+
+source "$BR2_EXTERNAL_PHOENIX_PATH/fs/Config.in"
+
 # packages
 
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/Config.in"

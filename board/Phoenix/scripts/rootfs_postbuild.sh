@@ -4,6 +4,10 @@ set -e
 
 . "${BR2_EXTERNAL_PHOENIX_PATH}"/scripts/certs.sh
 
+# create an empty /boot directory to be used as mountpoint for either of the boot partitions
+
+mkdir -p "${TARGET_DIR}"/boot
+
 # creating locale config
 
 echo "LANG=en_US.UTF-8" > "${TARGET_DIR}"/etc/locale.conf

@@ -1,0 +1,29 @@
+From 6e1375c795ac6783c24ca7a547b2afdb785c34f0 Mon Sep 17 00:00:00 2001
+From: Adam Duskett <aduskett@gmail.com>
+Date: Mon, 14 Jun 2021 17:41:03 -0700
+Subject: [PATCH] do not hardocode modprobe
+
+Add a variable in dracut-init.sh to allow specifying a modprobe path
+
+Signed-off-by: Adam Duskett <aduskett@gmail.com>
+---
+ dracut-init.sh | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/dracut-init.sh b/dracut-init.sh
+index b6e3714..3652216 100644
+--- a/dracut-init.sh
++++ b/dracut-init.sh
+@@ -64,7 +64,8 @@ srcmods="$dracutsysrootdir/lib/modules/$kernel/"
+ 
+ # shellcheck disable=SC2154
+ [[ $drivers_dir ]] && {
+-    if ! command -v kmod &> /dev/null && vercmp "$(modprobe --version | cut -d' ' -f3)" lt 3.7; then
++    DRACUT_MODPROBE=${DRACUT_MODPROBE:-modprobe}
++    if ! command -v kmod &> /dev/null && vercmp "$(${DRACUT_MODPROBE} --version | cut -d' ' -f3)" lt 3.7; then
+         dfatal 'To use --kmoddir option module-init-tools >= 3.7 is required.'
+         exit 1
+     fi
+-- 
+2.31.1
+

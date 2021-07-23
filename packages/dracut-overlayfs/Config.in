@@ -1,0 +1,6 @@
+config BR2_PACKAGE_DRACUT_OVERLAYFS
+	bool "dracut-overlayfs"
+	depends on BR2_PACKAGE_DRACUT
+	help
+	  Read-only rootfs and overlay made easy with dracut.
+	  https://git.lumina-sensum.com/LuminaSensum/dracut-overlayfs
