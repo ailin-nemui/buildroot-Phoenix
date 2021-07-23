@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-OPENSSH_SYSTEMD_VERSION = 8.2p1
+OPENSSH_SYSTEMD_VERSION = 8.6p1
 OPENSSH_SYSTEMD_SITE = http://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable
 OPENSSH_SYSTEMD_SOURCE = openssh-$(OPENSSH_SYSTEMD_VERSION).tar.gz
 OPENSSH_SYSTEMD_LICENSE = BSD-3-Clause, BSD-2-Clause, Public Domain
