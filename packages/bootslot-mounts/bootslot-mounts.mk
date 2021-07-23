@@ -4,8 +4,9 @@
 #
 ################################################################################
 
-BOOTSLOT_MOUNTS_VERSION = 9ad4d7be9f7f22b31b070d1651c5935fc46e11a0
-BOOTSLOT_MOUNTS_SITE = $(call github,KopisMobile,bootslot-mounts,$(BOOTSLOT_MOUNTS_VERSION))
+BOOTSLOT_MOUNTS_VERSION = 2021-07-23
+BOOTSLOT_MOUNTS_SITE = https://git.lumina-sensum.com/LuminaSensum/bootslot-mounts/archive
+BOOTSLOT_MOUNTS_SOURCE = $(BOOTSLOT_MOUNTS_VERSION).tar.gz
 BOOTSLOT_MOUNTS_LICENSE = GPL-3.0
 BOOTSLOT_MOUNTS_LICENSE_FILES = LICENSE
 BOOTSLOT_MOUNTS_DEPENDENCIES = systemd
