@@ -1,0 +1,27 @@
+From 4a176283dd96ad2b21c0f2d04364a7bb29bb4f69 Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Wed, 3 Mar 2021 14:51:23 -0500
+Subject: [PATCH] stm32mp157c-odyssey: set sdmmc3 in non-dma mode.
+
+5.11 kernel introduced the mmc controllers in dma mode, but it appears the wifi driver isn't able to deal with this.
+
+Explicitly set the sdmmc3 interface in non-dma mode.
+---
+ arch/arm/boot/dts/stm32mp157c-odyssey.dts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/boot/dts/stm32mp157c-odyssey.dts b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+index f0aa9a99887e..7b92d218af0f 100644
+--- a/arch/arm/boot/dts/stm32mp157c-odyssey.dts
++++ b/arch/arm/boot/dts/stm32mp157c-odyssey.dts
+@@ -106,6 +106,7 @@ &sdmmc3 {
+ 	pinctrl-2 = <&sdmmc3_b4_sleep_pins_s>;
+ 	bus-width = <4>;
+ 	vmmc-supply = <&v3v3>;
++	arm,primecell-periphid = <0x10153180>;
+ 	mmc-pwrseq = <&wifi_pwrseq>;
+ 	status = "okay";
+ 	keep-power-in-suspend;
+-- 
+2.32.0
+
