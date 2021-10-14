@@ -1,0 +1,13 @@
+diff --git a/fdts/stm32mp157a-dk1.dts b/fdts/stm32mp157a-dk1.dts
+index 9931d4362..b2e729eac 100644
+--- a/fdts/stm32mp157a-dk1.dts
++++ b/fdts/stm32mp157a-dk1.dts
+@@ -319,7 +319,7 @@
+ 		STM32_PM_CSTOP_ALLOW_STANDBY_DDR_SR
+ 	>;
+ 
+-	system_off_soc_mode = <STM32_PM_CSTOP_ALLOW_STANDBY_DDR_OFF>;
++	system_off_soc_mode = <STM32_PM_SHUTDOWN>;
+ };
+ 
+ /* Low-power states of regulators */
