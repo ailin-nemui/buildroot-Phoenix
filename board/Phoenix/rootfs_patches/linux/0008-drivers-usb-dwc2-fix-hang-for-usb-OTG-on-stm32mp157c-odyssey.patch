@@ -1,0 +1,45 @@
+From 504e2a31d195d9851dcf542c5452fabb48db918e Mon Sep 17 00:00:00 2001
+From: Xogium <contact@xogium.me>
+Date: Thu, 14 Oct 2021 09:36:58 +0200
+Subject: [PATCH 08/10] drivers/usb/dwc2: fix hang for usb OTG on
+ stm32mp157c-odyssey.
+
+---
+ drivers/usb/dwc2/platform.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/drivers/usb/dwc2/platform.c b/drivers/usb/dwc2/platform.c
+index c8f18f3ba9e3..bda6802082f1 100644
+--- a/drivers/usb/dwc2/platform.c
++++ b/drivers/usb/dwc2/platform.c
+@@ -528,6 +528,27 @@ static int dwc2_driver_probe(struct platform_device *dev)
+ 	if (retval)
+ 		goto error;
+ 
++	/*
++	* Connect FS PHY transceiver to prevent 'HANG! Soft Reset timeout'
++	*/
++	if (!hsotg->phy) {
++		u32 v;
++
++		v = dwc2_readl(hsotg, GGPIO);
++		if (!(v & GGPIO_STM32_OTG_GCCFG_PWRDWN)) {
++			/*
++			* STM32 uses the GGPIO register as general
++			* core configuration register.
++			*/
++			v |= GGPIO_STM32_OTG_GCCFG_PWRDWN;
++			dwc2_writel(hsotg, v, GGPIO);
++		}
++
++		v = dwc2_readl(hsotg, GUSBCFG);
++		v |= GUSBCFG_PHYSEL;
++		dwc2_writel(hsotg, v, GUSBCFG);
++	}
++
+ 	/*
+ 	 * Reset before dwc2_get_hwparams() then it could get power-on real
+ 	 * reset value form registers.
+-- 
+2.33.0
+
