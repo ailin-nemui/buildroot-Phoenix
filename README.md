@@ -69,10 +69,25 @@ EOF
 
 Build the image:
 
+### eMMC in PSLC mode ###
+
+This external tree supports building a system image for eMMC in PSLC mode. It is not the case by default however so this must be passed explicitly to make. If you have enabled the eMMC enhanced user area, please set BR2_PHOENIX_PSLC_EMMC=1 when building.
+
+**Without PSLC mode**
+
 ```
 cd buildroot
 make O=output_build phoenix_defconfig
 make O=output_build -j8
+cd ..
+```
+
+**With eMMC configured in PSLC mode**
+
+```
+cd buildroot
+make O=output_build phoenix_defconfig
+make O=output_build -j8 BR2_PHOENIX_PSLC_EMMC=1
 cd ..
 ```
 
