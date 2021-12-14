@@ -1,0 +1,73 @@
+image overlayfs.ext4 {
+	ext4 {
+		use-mke2fs = "true"
+		label = "overlayfs"
+	}
+	empty = "true"
+	size = 1230M
+}
+
+image Phoenix.img {
+	name = "Phoenix-${GENIMAGE_BUILD_ID}"
+	hdimage {
+		gpt = "true"
+	}
+
+	partition state {
+		offset = 0x14400
+		size = 0x30000
+		image = "/dev/null"
+		in-partition-table = "no"
+	}
+
+	partition ssbl {
+		image = "barebox.bin"
+size = 1M
+	}
+
+	partition PrimaryBoot {
+		image = "kernel.ext4"
+		size = 32M
+	}
+
+	partition SecondaryBoot {
+		image = "kernel.ext4"
+		size = 32M
+	}
+
+	partition PrimaryRootfs {
+		image = "rootfs.erofs"
+		size = 256M
+	}
+
+	partition SecondaryRootfs {
+		image = "rootfs.erofs"
+		size = 256M
+	}
+
+	partition overlayfs {
+		image = "overlayfs.ext4"
+	}
+}
+
+image bundle-Phoenix.${GENIMAGE_BUILD_ID}.raucb {
+	name = "bundle-Phoenix-${GENIMAGE_BUILD_ID}"
+	rauc {
+		files = {
+			"kernel.tar.xz",
+			"rootfs.erofs"
+		}
+		key = "${BR2_EXTERNAL_PHOENIX_PATH}/certs/signing.key"
+		cert = "${BR2_EXTERNAL_PHOENIX_PATH}/certs/signing.crt"
+		extraargs = "--keyring ${BR2_EXTERNAL_PHOENIX_PATH}/certs/keyring.pem"
+		manifest = 
+			"[update]
+			compatible=Phoenix
+			version=${GENIMAGE_BUILD_ID}
+			description=RAUC bundle for Phoenix version ${GENIMAGE_BUILD_ID}, built by ${GENIMAGE_USER}@${GENIMAGE_HOST}.
+			[image.kernel]
+			filename=kernel.tar.xz
+			[image.rootfs]
+			filename=rootfs.erofs"
+	}
+}
