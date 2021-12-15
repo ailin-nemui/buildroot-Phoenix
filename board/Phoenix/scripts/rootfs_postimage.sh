@@ -27,8 +27,17 @@ mkfs.ext4 -Fd \
 	"${BINARIES_DIR}"/kernel.ext4
 
 # prepare for genimage
+
 cd "${BINARIES_DIR}"
-export GENIMAGE_TMP=${BR2_EXTERNAL_PHOENIX_PATH}/board/Phoenix/utilities/genimage.tmp
+
+# use different genimage configuration depending on weather PSLC is used
+
+if [ "${BR2_PHOENIX_PSLC_EMMC}" = 1 ]
+then
+	export GENIMAGE_TMP=${BR2_EXTERNAL_PHOENIX_PATH}/board/Phoenix/utilities/genimage-pslc.tmp
+else
+	export GENIMAGE_TMP=${BR2_EXTERNAL_PHOENIX_PATH}/board/Phoenix/utilities/genimage.tmp
+fi
 GENIMAGE_CFG="${BR2_EXTERNAL_PHOENIX_PATH}/board/Phoenix/utilities/genimage.cfg"
 export GENIMAGE_USER=$(whoami)
 export GENIMAGE_HOST=$(hostname)

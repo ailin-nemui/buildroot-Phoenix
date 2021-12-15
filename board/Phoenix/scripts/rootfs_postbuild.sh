@@ -27,3 +27,12 @@ cp "${BR2_EXTERNAL_PHOENIX_PATH}"/changelog.md \
 
 cp "${BR2_EXTERNAL_PHOENIX_PATH}"/certs/keyring.pem \
 	"${TARGET_DIR}"/etc/rauc/keyring.pem
+
+# copy journald drop-in if eMMC is in PSLC mode
+
+if [ "${BR2_PHOENIX_PSLC_EMMC}" = 1 ]
+then
+	mkdir -p "${TARGET_DIR}"/etc/systemd/journald.conf.d
+	cp "${BR2_EXTERNAL_PHOENIX_PATH}"/board/Phoenix/utilities/00-size-limit.conf \
+		"${TARGET_DIR}"/etc/systemd/journald.conf.d/00-size-limit.conf
+fi
