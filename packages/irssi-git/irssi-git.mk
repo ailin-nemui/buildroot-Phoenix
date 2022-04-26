@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-IRSSI_GIT_VERSION = f57dcfe90dad9843cebb0155f8839d4c75c26457
-IRSSI_GIT_SITE = $(call github,irssi,irssi,$(IRSSI_GIT_VERSION))
+IRSSI_GIT_VERSION = 1.3.2-an
+IRSSI_GIT_SITE = $(call github,ailin-nemui,irssi,$(IRSSI_GIT_VERSION))
 IRSSI_GIT_LICENSE = GPL-2.0+
 IRSSI_GIT_LICENSE_FILES = COPYING
 IRSSI_GIT_DEPENDENCIES = host-pkgconf libglib2 ncurses openssl
