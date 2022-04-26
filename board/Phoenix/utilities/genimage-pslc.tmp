@@ -21,7 +21,7 @@ image Phoenix.img {
 	}
 
 	partition ssbl {
-		image = "barebox.bin"
+		image = "barebox-stm32mp157c-seeed-odyssey.img"
 size = 1M
 	}
 
