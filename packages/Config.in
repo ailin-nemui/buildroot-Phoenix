@@ -4,7 +4,6 @@ source "$BR2_EXTERNAL_PHOENIX_PATH/packages/bootslot-mounts/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/disabled-services/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/dracut/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/dracut-overlayfs/Config.in"
-source "$BR2_EXTERNAL_PHOENIX_PATH/packages/duktape-pc/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/irssi-git/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/libotr/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/openssh-systemd/Config.in"
@@ -29,7 +28,5 @@ source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-params-validationcomp
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-specio/Config.in"
 source "$BR2_EXTERNAL_PHOENIX_PATH/packages/perl-libs/perl-sub-identify/Config.in"
 endmenu
-
-source "$BR2_EXTERNAL_PHOENIX_PATH/packages/polkit-duktape/Config.in"
 
 endmenu
