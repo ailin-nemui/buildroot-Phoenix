@@ -1,6 +1,0 @@
-config BR2_PACKAGE_PERL_CLASS_SINGLETON
-	bool "perl-class-singleton"
-	help
-	  Implementation of a "Singleton" class.
-
-	  https://metacpan.org/release/Class-Singleton

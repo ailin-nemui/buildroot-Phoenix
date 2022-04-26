@@ -1,9 +1,0 @@
-config BR2_PACKAGE_PERL_EXCEPTION_CLASS
-	bool "perl-exception-class"
-	select BR2_PACKAGE_PERL_CLASS_DATA_INHERITABLE # runtime
-	select BR2_PACKAGE_PERL_DEVEL_STACKTRACE # runtime
-	help
-	  A module that allows you to declare real exception classes in
-	  Perl.
-
-	  http://metacpan.org/release/Exception-Class

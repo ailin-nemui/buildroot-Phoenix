@@ -1,9 +1,0 @@
-config BR2_PACKAGE_PERL_PARAMS_VALIDATIONCOMPILER
-	bool "perl-params-validationcompiler"
-	select BR2_PACKAGE_PERL_EVAL_CLOSURE # runtime
-	select BR2_PACKAGE_PERL_EXCEPTION_CLASS # runtime
-	help
-	  Build an optimized subroutine parameter validator once, use
-	  it forever.
-
-	  http://metacpan.org/release/Params-ValidationCompiler

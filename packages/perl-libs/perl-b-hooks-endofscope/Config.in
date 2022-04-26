@@ -1,8 +1,0 @@
-config BR2_PACKAGE_PERL_B_HOOKS_ENDOFSCOPE
-	bool "perl-b-hooks-endofscope"
-	select BR2_PACKAGE_PERL_MODULE_IMPLEMENTATION # runtime
-	select BR2_PACKAGE_PERL_SUB_EXPORTER_PROGRESSIVE # runtime
-	help
-	  Execute code after a scope finished compilation.
-
-	  https://github.com/karenetheridge/B-Hooks-EndOfScope
