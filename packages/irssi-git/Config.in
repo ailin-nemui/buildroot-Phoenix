@@ -31,18 +31,6 @@ config BR2_PACKAGE_IRSSI_GIT_PROXY
 	  Build the irssi proxy module, which allows an IRC connection
 	  to be shared among multiple clients.
 
-config BR2_PACKAGE_IRSSI_GIT_TIME_SCRIPTS
-	bool "enable support for scripts such as server time and auto away"
-	select BR2_PACKAGE_PERL_DATETIME_FORMAT_ISO8601
-	help
-	  This enables support for scripts such as server time.
-
-	  These require the addition of several perl modules.
-
-	  This config option *DOES NOT* install scripts.
-
-	  It merely selects the required modules for perl.
-
 config BR2_PACKAGE_IRSSI_GIT_TRUE_COLOR
 	bool "true color support"
 	help

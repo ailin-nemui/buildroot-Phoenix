@@ -35,10 +35,6 @@ else
 IRSSI_GIT_CONF_OPTS += -Dwith-proxy=no
 endif # proxy
 
-ifeq ($(BR2_PACKAGE_IRSSI_GIT_TIME_SCRIPTS),y)
-IRSSI_GIT_DEPENDENCIES += perl-datetime-format-iso8601
-endif
-
 ifeq ($(BR2_PACKAGE_IRSSI_GIT_TRUE_COLOR),y)
 IRSSI_GIT_CONF_OPTS += -Denable-true-color=yes
 else
