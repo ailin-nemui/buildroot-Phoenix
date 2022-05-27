@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-IRSSI_GIT_VERSION = 1.3.2-an
+IRSSI_GIT_VERSION = 3a3b77194ac592bb68d84dbf417b23ed8c29f505
 IRSSI_GIT_SITE = $(call github,ailin-nemui,irssi,$(IRSSI_GIT_VERSION))
 IRSSI_GIT_LICENSE = GPL-2.0+
 IRSSI_GIT_LICENSE_FILES = COPYING
@@ -34,11 +34,5 @@ IRSSI_GIT_CONF_OPTS += -Dwith-proxy=yes
 else
 IRSSI_GIT_CONF_OPTS += -Dwith-proxy=no
 endif # proxy
-
-ifeq ($(BR2_PACKAGE_IRSSI_GIT_TRUE_COLOR),y)
-IRSSI_GIT_CONF_OPTS += -Denable-true-color=yes
-else
-IRSSI_GIT_CONF_OPTS += -Denable-true-color=no
-endif
 
 $(eval $(meson-package))

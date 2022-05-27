@@ -31,11 +31,6 @@ config BR2_PACKAGE_IRSSI_GIT_PROXY
 	  Build the irssi proxy module, which allows an IRC connection
 	  to be shared among multiple clients.
 
-config BR2_PACKAGE_IRSSI_GIT_TRUE_COLOR
-	bool "true color support"
-	help
-	  Build with true color support in terminal.
-
 endif
 
 comment "irssi needs a toolchain w/ wchar, threads"

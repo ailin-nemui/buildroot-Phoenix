@@ -1,0 +1,22 @@
+From 5b340d7d2bac0e1f400121cb019bda0a8b378bd9 Mon Sep 17 00:00:00 2001
+From: Ailin Nemui <ailin@d5421s.localdomain>
+Date: Thu, 19 May 2022 14:54:15 +0200
+Subject: [PATCH] stop IRC names when using /names
+
+---
+ src/fe-common/core/fe-channels.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fe-common/core/fe-channels.c b/src/fe-common/core/fe-channels.c
+index 2d4e9ece8b..220737b716 100644
+--- a/src/fe-common/core/fe-channels.c
++++ b/src/fe-common/core/fe-channels.c
+@@ -646,7 +646,7 @@ void fe_channels_init(void)
+ 	command_bind("channel modify", NULL, (SIGNAL_FUNC) cmd_channel_modify);
+ 	command_bind("channel remove", NULL, (SIGNAL_FUNC) cmd_channel_remove);
+ 	command_bind("channel list", NULL, (SIGNAL_FUNC) cmd_channel_list);
+-	command_bind("names", NULL, (SIGNAL_FUNC) cmd_names);
++	command_bind_first("names", NULL, (SIGNAL_FUNC) cmd_names);
+ 	command_bind("cycle", NULL, (SIGNAL_FUNC) cmd_cycle);
+ 
+ 	command_set_options("channel add", "auto noauto -bots -botcmd");
